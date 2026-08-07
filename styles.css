@@ -277,6 +277,29 @@ section p.strong { color: var(--ink); font-weight: 500; }
   font-size: 17px;
   color: var(--ink-soft);
 }
+.step-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 16px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.step-list li {
+  padding: 6px 0 6px 22px;
+  position: relative;
+}
+.step-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15px;
+  width: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
 
 /* ── Features ───────────────────────────────────────────────────── */
 
