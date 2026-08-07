@@ -3,15 +3,64 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f8f6f1">
 <title>OutboundRun — Enterprise outbound, backed by research.</title>
 <meta name="description" content="OutboundRun automates 4-6 hours of per-account research — SEC filings, org charts, tech signals, live news — and drafts per-persona outreach designed to hit 10-15% reply rates. 5x the industry norm for enterprise B2B.">
-<meta property="og:title" content="OutboundRun — Enterprise outbound, backed by research.">
-<meta property="og:description" content="Per-account research + per-persona outreach for enterprise B2B sales teams. Designed for 5x the industry reply rate.">
+<link rel="canonical" href="https://outboundrun.com/">
+
+<!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://outboundrun.com">
+<meta property="og:site_name" content="OutboundRun">
+<meta property="og:title" content="OutboundRun — Enterprise outbound, backed by research.">
+<meta property="og:description" content="Per-account research + per-persona outreach for enterprise B2B sales teams. Designed to hit 10-15% reply rates, 5x the industry average.">
+<meta property="og:url" content="https://outboundrun.com/">
+<meta property="og:image" content="https://outboundrun.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="OutboundRun — Enterprise outbound, backed by research. Designed for 10-15% reply rates.">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OutboundRun — Enterprise outbound, backed by research.">
+<meta name="twitter:description" content="Per-account research + per-persona outreach for enterprise B2B sales teams.">
+<meta name="twitter:image" content="https://outboundrun.com/og-image.png">
+<meta name="twitter:image:alt" content="OutboundRun — Enterprise outbound, backed by research.">
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="mask-icon" href="/favicon.svg" color="#7a3818">
+<link rel="apple-touch-icon" href="/favicon.svg">
+
+<!-- Fonts: Fraunces (serif) + system sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap">
+
 <link rel="stylesheet" href="styles.css">
+
+<!-- Structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "OutboundRun",
+  "applicationCategory": "BusinessApplication",
+  "applicationSubCategory": "Sales Intelligence",
+  "operatingSystem": "macOS, Windows, Linux",
+  "description": "Per-account research and per-persona outreach for enterprise B2B sales teams. Designed to hit 10-15% cold-outreach reply rates.",
+  "url": "https://outboundrun.com/",
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "USD",
+    "price": "0",
+    "availability": "https://schema.org/PreOrder"
+  }
+}
+</script>
 </head>
 <body>
+
+<a href="#main" class="skip-link">Skip to main content</a>
 
 <header class="site-header">
   <div class="wrap">
@@ -20,10 +69,12 @@
       <a href="#how">How it works</a>
       <a href="#compare">Vs alternatives</a>
       <a href="#faq">FAQ</a>
-      <a href="#demo" class="btn btn-ghost">Book a demo</a>
+      <a href="#demo" class="btn btn-ghost">Book a 15-min demo</a>
     </nav>
   </div>
 </header>
+
+<main id="main">
 
 <section class="hero">
   <div class="wrap">
@@ -176,12 +227,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td>Per-account 10-K &amp; earnings-call research</td><td class="us">Yes</td><td>No</td><td>No</td><td>Partial</td></tr>
-          <tr><td>Per-persona email drafting</td><td class="us">Yes</td><td>Templates</td><td>Templates</td><td>Yes</td></tr>
-          <tr><td>Every claim cited to a public source</td><td class="us">Yes</td><td>No</td><td>No</td><td>No</td></tr>
-          <tr><td>Human-in-the-loop by default</td><td class="us">Yes</td><td>Optional</td><td>Optional</td><td>Optional</td></tr>
-          <tr><td>Runs local — data stays on your machine</td><td class="us">Yes</td><td>No</td><td>No</td><td>No</td></tr>
-          <tr><td>Built for enterprise AE workflow</td><td class="us">Yes</td><td>SDR-first</td><td>SDR-first</td><td>RevOps-first</td></tr>
+          <tr><td>Per-account 10-K &amp; earnings-call research</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="partial">Partial</span></td></tr>
+          <tr><td>Per-persona email drafting</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="partial">Templates</span></td><td><span class="partial">Templates</span></td><td><span class="check" aria-label="Yes">✓</span></td></tr>
+          <tr><td>Every claim cited to a public source</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="dash" aria-label="No">—</span></td></tr>
+          <tr><td>Human-in-the-loop by default</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="partial">Optional</span></td><td><span class="partial">Optional</span></td><td><span class="partial">Optional</span></td></tr>
+          <tr><td>Runs local — data stays on your machine</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="dash" aria-label="No">—</span></td><td><span class="dash" aria-label="No">—</span></td></tr>
+          <tr><td>Built for enterprise AE workflow</td><td class="us"><span class="check" aria-label="Yes">✓</span></td><td><span class="partial">SDR-first</span></td><td><span class="partial">SDR-first</span></td><td><span class="partial">RevOps-first</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -234,7 +285,7 @@
     <div class="section-eyebrow">Pricing</div>
     <h2>Enterprise pricing. Design partners now.</h2>
     <p>OutboundRun is priced per-seat, annual, for enterprise sales teams. We're currently onboarding a limited number of design-partner teams — meaningfully discounted terms in exchange for shaping the roadmap. Book a demo and we'll walk you through what fits.</p>
-    <a href="#demo" class="btn btn-primary">Talk to us</a>
+    <a href="#demo" class="btn btn-primary">Book a 15-min demo</a>
   </div>
 </section>
 
@@ -254,6 +305,8 @@
     <div class="foot-meta">&copy; 2026 OutboundRun. Enterprise outbound, backed by research.</div>
   </div>
 </footer>
+
+</main>
 
 </body>
 </html>
