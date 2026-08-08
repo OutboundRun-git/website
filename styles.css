@@ -311,8 +311,8 @@ section p.strong { color: var(--ink); font-weight: 500; }
 .features h2 { margin-bottom: 60px; }
 .feature-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
 }
 .feature {
   background: var(--paper);
