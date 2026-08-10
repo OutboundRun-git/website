@@ -611,6 +611,65 @@ section p.strong { color: var(--ink); font-weight: 500; }
   font-weight: 500;
 }
 
+/* ── Origin section (why this exists — on landing page) ───────── */
+
+.origin {
+  background: var(--paper-warm);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.origin h2 { text-align: center; margin-bottom: 32px; }
+.origin p { text-align: center; }
+
+/* ── Comparison-page sections (pros/cons + when-to-use) ─────── */
+
+.pros-cons h2 { margin-bottom: 40px; text-align: center; }
+.pros-cons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.pros-cons-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 32px;
+}
+.pros-cons-card .section-eyebrow { margin-bottom: 20px; }
+.pros-cons-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pros-cons-card li {
+  font-size: 16px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  padding-left: 20px;
+  position: relative;
+}
+.pros-cons-card li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.pros-cons-card li strong {
+  color: var(--ink);
+  font-weight: 500;
+  display: inline;
+}
+
+.when h2 { margin-bottom: 24px; text-align: center; }
+.when p { font-size: 18px; }
+
 /* ── FAQ ───────────────────────────────────────────────────────── */
 
 .faq h2 { margin-bottom: 40px; text-align: center; }
@@ -803,4 +862,7 @@ section p.strong { color: var(--ink); font-weight: 500; }
   /* Demo form — stack on mobile */
   .demo-form { grid-template-columns: 1fr; gap: 16px; }
   .form-row-half { grid-column: 1 / -1; }
+
+  /* Pros/cons cards — stack on mobile */
+  .pros-cons-grid { grid-template-columns: 1fr; gap: 20px; }
 }
