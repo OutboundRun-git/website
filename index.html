@@ -65,12 +65,15 @@
 <header class="site-header">
   <div class="wrap">
     <a href="#" class="brand">OutboundRun</a>
-    <nav>
+    <nav id="main-nav">
       <a href="#how">How it works</a>
       <a href="#compare">Vs alternatives</a>
       <a href="#faq">FAQ</a>
       <a href="#demo" class="btn btn-ghost">Book a 15-min demo</a>
     </nav>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="main-nav" onclick="toggleNav()">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </header>
 
@@ -85,6 +88,16 @@
       <a href="#demo" class="btn btn-primary">Book a 15-min demo</a>
       <a href="#sample" class="btn btn-secondary">See a sample email</a>
     </div>
+    <figure class="hero-shot">
+      <img
+        src="/images/screenshots/account-list.png"
+        alt="OutboundRun app dashboard showing an account list ready for research and outreach"
+        width="1440"
+        height="900"
+        fetchpriority="high"
+        decoding="async"
+      >
+    </figure>
   </div>
 </section>
 
@@ -121,8 +134,15 @@
     <div class="email-compare">
       <div class="email-card email-bad">
         <div class="email-tag">Typical cold outreach</div>
-        <div class="email-meta"><span>To:</span> sarah.chen@northwind.com</div>
-        <div class="email-meta"><span>Subject:</span> Northwind + [our platform]?</div>
+        <div class="email-header">
+          <div class="email-avatar muted" aria-hidden="true">R</div>
+          <div class="email-sender">
+            <div class="email-sender-name">Your rep</div>
+            <div class="email-sender-addr">to sarah.chen@northwind.com</div>
+          </div>
+          <div class="email-time">9:14 AM</div>
+        </div>
+        <div class="email-subject">Northwind + [our platform]?</div>
         <div class="email-body">
           Hi Sarah,<br><br>
           I noticed you're the VP of Data at Northwind. I wanted to reach out because [our platform] helps companies like Northwind streamline their data operations.<br><br>
@@ -135,8 +155,15 @@
 
       <div class="email-card email-good">
         <div class="email-tag good">OutboundRun-drafted</div>
-        <div class="email-meta"><span>To:</span> sarah.chen@northwind.com</div>
-        <div class="email-meta"><span>Subject:</span> 30% of Northwind's data-eng hires are integration-focused</div>
+        <div class="email-header">
+          <div class="email-avatar" aria-hidden="true">R</div>
+          <div class="email-sender">
+            <div class="email-sender-name">Your rep</div>
+            <div class="email-sender-addr">to sarah.chen@northwind.com</div>
+          </div>
+          <div class="email-time">9:14 AM</div>
+        </div>
+        <div class="email-subject">30% of Northwind's data-eng hires are integration-focused</div>
         <div class="email-body">
           Hi Sarah,<br><br>
           Northwind posted 8 data-integration roles this quarter, roughly 30% of your data-eng hiring. Combined with the commerce-cloud initiative your CIO announced on the Q3 earnings call, that suggests you're expanding source-system count ~40% before FY-end.<br><br>
@@ -203,14 +230,39 @@
     <h2>Built for the enterprise deal cycle</h2>
     <div class="feature-grid">
       <div class="feature">
+        <span class="feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 5h16l6 6v24H9z"/>
+            <path d="M25 5v6h6"/>
+            <path d="M14 20h12M14 25h12M14 30h8"/>
+          </svg>
+        </span>
         <h3>Grounded in real sources</h3>
         <p>Every claim in every email traces back to a specific 10-K passage, earnings-call transcript, or news story. Inline citations in the research view.</p>
       </div>
       <div class="feature">
+        <span class="feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="13" cy="14" r="4"/>
+            <path d="M6 30c0-4 3-7 7-7s7 3 7 7"/>
+            <circle cx="27" cy="14" r="4"/>
+            <path d="M20 30c0-4 3-7 7-7s7 3 7 7"/>
+          </svg>
+        </span>
         <h3>Per-persona depth, not spray-and-pray</h3>
         <p>The message a CDO reads is different from the one the CFO reads. OutboundRun writes both, with pain-specific hooks per role and product-fit per persona.</p>
       </div>
       <div class="feature">
+        <span class="feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 12h20M32 12h2"/>
+            <circle cx="28" cy="12" r="3"/>
+            <path d="M6 20h6M18 20h16"/>
+            <circle cx="15" cy="20" r="3"/>
+            <path d="M6 28h14M26 28h8"/>
+            <circle cx="23" cy="28" r="3"/>
+          </svg>
+        </span>
         <h3>Configurable to your business</h3>
         <p>Your identity, product catalog, ICP, and target roles are all configurable in a 3-minute setup wizard. Not another rigid SaaS you have to bend your process around.</p>
       </div>
@@ -333,6 +385,65 @@
 </footer>
 
 </main>
+
+<a href="#demo" id="sticky-cta" class="sticky-cta" aria-label="Book a 15-min demo">
+  Book a demo
+  <span class="sticky-cta-arrow" aria-hidden="true">&rarr;</span>
+</a>
+
+<script>
+// Mobile hamburger toggle
+function toggleNav() {
+  const nav = document.getElementById('main-nav');
+  const btn = document.querySelector('.nav-toggle');
+  const isOpen = nav.classList.toggle('open');
+  btn.setAttribute('aria-expanded', String(isOpen));
+  btn.classList.toggle('open', isOpen);
+}
+
+// Close mobile nav when a link is clicked (so anchor scroll works cleanly)
+document.querySelectorAll('#main-nav a').forEach(a => {
+  a.addEventListener('click', () => {
+    const nav = document.getElementById('main-nav');
+    const btn = document.querySelector('.nav-toggle');
+    if (nav.classList.contains('open')) {
+      nav.classList.remove('open');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
+
+// Sticky CTA: appears after user scrolls past the hero
+(function stickyCta() {
+  const cta = document.getElementById('sticky-cta');
+  const hero = document.querySelector('.hero');
+  if (!cta || !hero) return;
+  const threshold = hero.offsetHeight * 0.6;
+  const onScroll = () => {
+    if (window.scrollY > threshold) cta.classList.add('visible');
+    else cta.classList.remove('visible');
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+
+// Fade-in-up on sections as they enter viewport (progressive enhancement; no-op if IntersectionObserver missing)
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in-view');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('section, .feature, .email-card').forEach(el => {
+    el.classList.add('reveal');
+    io.observe(el);
+  });
+}
+</script>
 
 <!-- Vercel Web Analytics: Analytics must be enabled in the Vercel dashboard
      (Project → Analytics → Enable) BEFORE uncommenting the script tag below.
