@@ -293,8 +293,26 @@
     <div class="section-eyebrow">Book a demo</div>
     <h2>15 minutes. Your accounts, live.</h2>
     <p>Send us three real target accounts from your pipeline. We'll run OutboundRun on them live during the call. You'll see the research, the drafted emails, and the citations before we hang up. If you're not impressed, we'll wish you luck and get off your calendar.</p>
-    <a href="mailto:info@outboundrun.com?subject=OutboundRun%20demo%20request" class="btn btn-primary btn-large">info@outboundrun.com</a>
-    <p class="cta-fine">Design-partner slots for Q4 2026 are limited.</p>
+
+    <form id="demo-form" class="demo-form" novalidate>
+      <div class="form-row form-row-half">
+        <label for="df-email">Work email</label>
+        <input type="email" id="df-email" name="email" required autocomplete="email" placeholder="you@company.com">
+      </div>
+      <div class="form-row form-row-half">
+        <label for="df-company">Company</label>
+        <input type="text" id="df-company" name="company" required autocomplete="organization" placeholder="Company name">
+      </div>
+      <div class="form-row">
+        <label for="df-message">What are you hoping to solve? <span class="form-optional">(optional)</span></label>
+        <textarea id="df-message" name="message" rows="3" placeholder="Team size, current outbound stack, specific goals..."></textarea>
+      </div>
+      <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="honeypot">
+      <button type="submit" class="btn btn-primary btn-large">Request a demo</button>
+      <div id="df-status" class="df-status" role="status" aria-live="polite"></div>
+    </form>
+
+    <p class="cta-fine">Design-partner slots for Q4 2026 are limited. Or email <a href="mailto:info@outboundrun.com">info@outboundrun.com</a>.</p>
   </div>
 </section>
 
@@ -306,6 +324,81 @@
 </footer>
 
 </main>
+
+<script>
+(function () {
+  const SUPABASE_URL = 'https://bofukvujflsamvhzdrxh.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U';
+
+  const form = document.getElementById('demo-form');
+  if (!form) return;
+
+  const status = document.getElementById('df-status');
+  const button = form.querySelector('button[type="submit"]');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    // Honeypot: real users can't fill this hidden field. Bots will.
+    if (form.website && form.website.value) {
+      status.textContent = 'Thanks. We\'ll be in touch.';
+      status.className = 'df-status success';
+      form.reset();
+      return;
+    }
+
+    const payload = {
+      email: form.email.value.trim(),
+      company: form.company.value.trim(),
+      message: form.message.value.trim() || null,
+      source: 'website',
+      user_agent: navigator.userAgent.slice(0, 500),
+      referrer: document.referrer ? document.referrer.slice(0, 500) : null,
+    };
+
+    if (!payload.email || !payload.company) {
+      status.textContent = 'Please add your email and company.';
+      status.className = 'df-status error';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Submitting...';
+    status.textContent = '';
+    status.className = 'df-status';
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/demo_requests`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      form.reset();
+      status.textContent = 'Thanks. We\'ll be in touch within 24 hours.';
+      status.className = 'df-status success';
+      button.textContent = 'Request received';
+      button.disabled = true;
+    } catch (err) {
+      console.error('Demo request failed:', err);
+      status.textContent = 'Something went wrong. Please email info@outboundrun.com directly.';
+      status.className = 'df-status error';
+      button.disabled = false;
+      button.textContent = 'Request a demo';
+    }
+  });
+})();
+</script>
 
 </body>
 </html>

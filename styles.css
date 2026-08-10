@@ -653,6 +653,102 @@ section p.strong { color: var(--ink); font-weight: 500; }
   padding-right: 40px;
 }
 
+/* ── Demo form (in CTA section, on dark ink background) ────────── */
+
+.demo-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 20px;
+  margin: 40px auto 0;
+  text-align: left;
+  max-width: 620px;
+}
+.form-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-row-half {
+  grid-column: auto;
+}
+.form-row label {
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(248, 246, 241, 0.75);
+  letter-spacing: 0.02em;
+}
+.form-optional {
+  font-weight: 400;
+  color: rgba(248, 246, 241, 0.4);
+  font-size: 12px;
+}
+.form-row input,
+.form-row textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid rgba(248, 246, 241, 0.15);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-row input::placeholder,
+.form-row textarea::placeholder {
+  color: var(--ink-mute);
+}
+.form-row input:focus,
+.form-row textarea:focus {
+  outline: none;
+  border-color: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(160, 74, 30, 0.25);
+}
+.form-row textarea {
+  resize: vertical;
+  min-height: 84px;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+}
+
+.demo-form button[type="submit"] {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 4px;
+}
+.demo-form button[type="submit"]:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.honeypot {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.df-status {
+  grid-column: 1 / -1;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  min-height: 20px;
+  color: rgba(248, 246, 241, 0.7);
+}
+.df-status.success {
+  color: #a3d17f;
+}
+.df-status.error {
+  color: #f0a48c;
+}
+
+/* CTA section: keep the h2 and lead-p centered, but leave the form left-aligned via .demo-form's text-align */
+.cta .demo-form { text-align: left; }
+
 /* ── CTA fine print ─────────────────────────────────────────────── */
 
 .cta-fine {
@@ -703,4 +799,8 @@ section p.strong { color: var(--ink); font-weight: 500; }
   .faq-item summary { font-size: 18px; padding-right: 32px; }
   .faq-item summary::after { font-size: 24px; }
   .faq-item p { font-size: 16px !important; padding-right: 32px; }
+
+  /* Demo form — stack on mobile */
+  .demo-form { grid-template-columns: 1fr; gap: 16px; }
+  .form-row-half { grid-column: 1 / -1; }
 }
