@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Sign in — OutboundRun</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  main.auth-card {
+    max-width: 440px;
+    width: 100%;
+    background: var(--paper);
+    padding: 48px 40px;
+    border-radius: 4px;
+    box-shadow: 0 2px 24px rgba(26, 26, 26, 0.08);
+  }
+  .auth-brand {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    display: block;
+    text-decoration: none;
+    margin-bottom: 32px;
+  }
+  .auth-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: 32px;
+    line-height: 1.15;
+    color: var(--ink);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.01em;
+  }
+  .auth-sub {
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0 0 32px 0;
+  }
+  .auth-form label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+  .auth-form input[type=email] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-family: inherit;
+    background: white;
+    border: 1px solid #d8d3c5;
+    border-radius: 3px;
+    color: var(--ink);
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+  }
+  .auth-form input[type=email]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(122, 56, 24, 0.1);
+  }
+  .auth-form button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 13px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .auth-form button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 26, 26, 0.2);
+  }
+  .auth-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .auth-status {
+    margin-top: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    min-height: 20px;
+  }
+  .auth-status.error { color: #b3271e; }
+  .auth-status.success { color: #1a6b2c; }
+  .auth-footer {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #ebe6d8;
+    font-size: 13px;
+    color: var(--ink-mute);
+    line-height: 1.5;
+  }
+  .auth-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .auth-footer a:hover { text-decoration: underline; }
+  .auth-check {
+    text-align: center;
+    padding: 20px 0;
+  }
+  .auth-check-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+  .auth-check p {
+    color: var(--ink-soft);
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+  .auth-check strong { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<main class="auth-card">
+  <a href="/" class="auth-brand">OutboundRun</a>
+
+  <div id="signin-view">
+    <h1 class="auth-heading">Sign in</h1>
+    <p class="auth-sub">Enter your work email. We will send you a one-time sign-in link. No password.</p>
+
+    <form id="signin-form" class="auth-form" novalidate>
+      <label for="email">Work email</label>
+      <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@company.com">
+      <button type="submit" id="submit-btn">Send sign-in link</button>
+      <div id="status" class="auth-status" role="status" aria-live="polite"></div>
+    </form>
+
+    <div class="auth-footer">
+      New to OutboundRun? Just enter your email. Your account is created on first sign-in.<br><br>
+      By signing in you agree to how we use your data. Questions: <a href="mailto:info@outboundrun.com">info@outboundrun.com</a>.
+    </div>
+  </div>
+
+  <div id="check-email-view" style="display: none;">
+    <div class="auth-check">
+      <div class="auth-check-icon">📬</div>
+      <h1 class="auth-heading">Check your email</h1>
+      <p>We sent a sign-in link to <strong id="sent-email"></strong>.</p>
+      <p>Click the link in your inbox. This tab will sign you in automatically when you return.</p>
+      <p style="margin-top: 24px; font-size: 13px; color: var(--ink-mute);">
+        Not seeing it? Check spam, or <a href="#" id="resend-link" style="color: var(--accent);">send another</a>.
+      </p>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  const SUPABASE_URL = 'https://bofukvujflsamvhzdrxh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U';
+  const APP_URL = window.location.origin + '/app/';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      detectSessionInUrl: true,
+      autoRefreshToken: true,
+    },
+  });
+
+  const form = document.getElementById('signin-form');
+  const emailInput = document.getElementById('email');
+  const submitBtn = document.getElementById('submit-btn');
+  const statusEl = document.getElementById('status');
+  const signinView = document.getElementById('signin-view');
+  const checkView = document.getElementById('check-email-view');
+  const sentEmail = document.getElementById('sent-email');
+  const resendLink = document.getElementById('resend-link');
+
+  let lastEmail = '';
+
+  function showCheckEmail(email) {
+    lastEmail = email;
+    sentEmail.textContent = email;
+    signinView.style.display = 'none';
+    checkView.style.display = 'block';
+  }
+
+  function showSignIn() {
+    signinView.style.display = 'block';
+    checkView.style.display = 'none';
+  }
+
+  async function sendLink(email) {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: APP_URL,
+        shouldCreateUser: true,
+      },
+    });
+    if (error) throw error;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      statusEl.textContent = 'Please enter a valid email address.';
+      statusEl.className = 'auth-status error';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    statusEl.textContent = '';
+    statusEl.className = 'auth-status';
+    try {
+      await sendLink(email);
+      showCheckEmail(email);
+    } catch (err) {
+      statusEl.textContent = 'Something went wrong: ' + (err.message || 'please try again');
+      statusEl.className = 'auth-status error';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send sign-in link';
+    }
+  });
+
+  resendLink.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (!lastEmail) return;
+    try {
+      await sendLink(lastEmail);
+      resendLink.textContent = 'Sent again';
+      resendLink.style.pointerEvents = 'none';
+      setTimeout(() => {
+        resendLink.textContent = 'send another';
+        resendLink.style.pointerEvents = 'auto';
+      }, 3000);
+    } catch (err) {
+      alert('Could not resend: ' + (err.message || 'try again'));
+    }
+  });
+
+  // Session detection: if user lands here already signed in (or clicks a magic link
+  // that brings them back here), redirect to the app.
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      window.location.replace(APP_URL);
+    }
+  });
+
+  // Handle case where session is already established on load (returning user)
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      window.location.replace(APP_URL);
+    } else {
+      showSignIn();
+    }
+  })();
+</script>
+
+</body>
+</html>

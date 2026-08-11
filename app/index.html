@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">OutboundRun</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; font-size: 14px; }
+
+  header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
+  header .meta { font-size: 12px; color: #8b949e; }
+
+  .search-bar { padding: 12px 24px; background: #161b22; border-bottom: 1px solid #30363d; }
+  .search-bar input { width: 100%; max-width: 500px; padding: 8px 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 14px; outline: none; }
+  .search-bar input:focus { border-color: #58a6ff; }
+
+  .controls { padding: 10px 24px; display: flex; gap: 10px; align-items: center; background: #0f1117; border-bottom: 1px solid #30363d; }
+  .controls button { padding: 6px 14px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #e1e4e8; cursor: pointer; font-size: 12px; }
+  .controls button:hover { background: #30363d; }
+  .controls .stats { font-size: 12px; color: #8b949e; margin-left: auto; }
+
+  .account-list { padding: 16px 24px; display: flex; flex-direction: column; gap: 6px; }
+
+  .account-block { border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+  .account-header { padding: 12px 16px; background: #161b22; cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; }
+  .account-header:hover { background: #1c2128; }
+  .account-header .chevron { font-size: 10px; color: #8b949e; transition: transform 0.15s; width: 12px; }
+  .account-header.open .chevron { transform: rotate(90deg); }
+  .account-header .name { font-weight: 600; font-size: 15px; flex: 1; }
+  .account-header .badges { display: flex; gap: 6px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+  .badge.green { background: #0d2a1a; color: #3fb950; border-color: #238636; }
+  .badge.yellow { background: #2d2008; color: #d29922; border-color: #9e6a03; }
+  .badge.blue { background: #0c1e3a; color: #58a6ff; border-color: #1f6feb; }
+  .badge.loading { background: #1c2128; color: #8b949e; }
+
+  .account-body { display: none; border-top: 1px solid #30363d; }
+  .account-body.open { display: block; }
+
+  .section-block { border-bottom: 1px solid #21262d; }
+  .section-block:last-child { border-bottom: none; }
+  .section-header { padding: 10px 16px; background: #0d1117; cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
+  .section-header:hover { background: #161b22; }
+  .section-header .chevron { font-size: 10px; color: #8b949e; transition: transform 0.15s; width: 12px; }
+  .section-header.open .chevron { transform: rotate(90deg); }
+  .section-header .label { font-size: 13px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .section-content { display: none; padding: 16px; background: #0f1117; }
+  .section-content.open { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #161b22; color: #8b949e; font-weight: 600; border-bottom: 1px solid #30363d; white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid #21262d; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #161b22; }
+
+  .email-link { color: #58a6ff; text-decoration: none; cursor: pointer; }
+  .email-link:hover { text-decoration: underline; }
+  .not-found { color: #484f58; font-style: italic; }
+
+  .hypothesis { line-height: 1.7; }
+  .hypothesis h3 { color: #58a6ff; margin: 16px 0 8px; font-size: 14px; }
+  .hypothesis h3:first-child { margin-top: 0; }
+  .hypothesis p { color: #c9d1d9; margin-bottom: 10px; }
+  .hypothesis ul { padding-left: 20px; color: #c9d1d9; margin-bottom: 10px; }
+  .hypothesis li { margin-bottom: 4px; }
+  .hypothesis .product-tag { display: inline-block; background: #0c1e3a; color: #58a6ff; border: 1px solid #1f6feb; border-radius: 4px; padding: 1px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
+  .hypothesis .cite { color: #58a6ff; font-size: 10px; vertical-align: super; margin-left: 1px; cursor: default; }
+  .hypothesis .footnotes { margin-top: 20px; padding-top: 12px; border-top: 1px solid #30363d; font-size: 12px; color: #8b949e; }
+  .hypothesis .footnotes p { margin-bottom: 4px; }
+
+  .research-block { line-height: 1.7; color: #c9d1d9; }
+  .research-block p { margin-bottom: 10px; }
+  .research-block .cite { color: #8b949e; font-size: 11px; vertical-align: super; margin-left: 2px; }
+  .research-block .footnotes { margin-top: 16px; padding-top: 12px; border-top: 1px solid #30363d; font-size: 12px; color: #8b949e; }
+  .research-block .footnotes p { margin-bottom: 4px; }
+
+  .loading-placeholder { color: #484f58; font-style: italic; padding: 12px 0; }
+
+  .section-header-meta { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .date-tag { font-size: 11px; color: #484f58; font-weight: 400; }
+  .refresh-btn { padding: 3px 10px; font-size: 11px; border-radius: 5px; border: 1px solid #30363d; background: #21262d; color: #8b949e; cursor: pointer; font-weight: 500; }
+  .refresh-btn:hover { background: #30363d; color: #e1e4e8; }
+  .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .refresh-btn.spinning { color: #58a6ff; border-color: #1f6feb; }
+  .send-all-btn { padding: 3px 10px; font-size: 11px; border-radius: 5px; border: 1px solid #238636; background: #0d2a1a; color: #3fb950; cursor: pointer; font-weight: 500; }
+  .send-all-btn:hover { background: #1a3d25; }
+  .send-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #161b22; border-top: 1px solid #30363d; padding: 8px 24px; font-size: 12px; color: #8b949e; display: flex; gap: 16px; align-items: center; }
+  .status-bar .progress { flex: 1; height: 4px; background: #30363d; border-radius: 2px; overflow: hidden; }
+  .status-bar .progress-fill { height: 100%; background: #58a6ff; border-radius: 2px; transition: width 0.3s; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #161b22; border: 1px solid #30363d; border-radius: 10px; width: 700px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: flex-start; }
+  .modal-header .to { font-size: 13px; color: #8b949e; display: flex; align-items: center; gap: 8px; }
+  .modal-header .to strong { color: #e1e4e8; }
+  .modal-header .close { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; padding: 0 4px; }
+  .modal-header .close:hover { color: #e1e4e8; }
+  .modal-subject { padding: 12px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+  .modal-subject input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; color: #e1e4e8; font-size: 14px; outline: none; }
+  .modal-subject input:focus { border-color: #58a6ff; }
+  .copy-btn { flex-shrink: 0; padding: 5px 10px; font-size: 11px; border-radius: 5px; border: 1px solid #30363d; background: #21262d; color: #8b949e; cursor: pointer; white-space: nowrap; }
+  .copy-btn:hover { background: #30363d; color: #e1e4e8; }
+  .copy-btn.copied { border-color: #238636; color: #3fb950; background: #0d2a1a; }
+  .modal-body { padding: 16px 20px; flex: 1; overflow-y: auto; }
+  .modal-body textarea { width: 100%; height: 320px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; color: #e1e4e8; font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit; }
+  .modal-body textarea:focus { border-color: #58a6ff; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+  .modal-footer .status-msg { font-size: 12px; color: #8b949e; margin-right: auto; }
+  .btn { padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: #238636; color: #fff; }
+  .btn-primary:hover { background: #2ea043; }
+  .btn-secondary { background: #21262d; color: #e1e4e8; border: 1px solid #30363d; }
+  .btn-secondary:hover { background: #30363d; }
+  .btn-skip { background: #6e1010; color: #ffa198; border: 1px solid #8b1a1a; }
+  .btn-skip:hover { background: #8b1a1a; }
+  .sent-tag { display: inline-block; background: #0d2a1a; color: #3fb950; border: 1px solid #238636; border-radius: 4px; padding: 1px 8px; font-size: 11px; margin-left: 8px; }
+  .skipped-tag { display: inline-block; background: #1c0f0f; color: #ffa198; border: 1px solid #8b1a1a; border-radius: 4px; padding: 1px 8px; font-size: 11px; margin-left: 8px; }
+
+  /* Action column */
+  .action-cell { white-space: nowrap; }
+  .action-select { background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; padding: 4px 8px; font-size: 12px; cursor: pointer; outline: none; }
+  .action-select:focus { border-color: #58a6ff; }
+  .action-select.action-emailed { background: #0c1e3a; color: #58a6ff; border-color: #1f6feb; }
+  .action-select.action-texted  { background: #2d2008; color: #d29922; border-color: #9e6a03; }
+  .action-select.action-called  { background: #0d2a1a; color: #3fb950; border-color: #238636; }
+  .action-date { margin-top: 5px; display: block; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; padding: 4px 8px; font-size: 12px; outline: none; width: 100%; }
+  .action-date:focus { border-color: #58a6ff; }
+
+  /* Checkbox + bulk selection */
+  .check-col { width: 32px; text-align: center; padding: 8px 4px !important; }
+  .email-checkbox { width: 14px; height: 14px; cursor: pointer; accent-color: #58a6ff; }
+  .select-all-table { width: 14px; height: 14px; cursor: pointer; accent-color: #8b949e; }
+  tr.row-selected td { background: #0c1e3a !important; }
+
+  /* Blast send bar */
+
+  /* Bulk action bar */
+  .bulk-bar { padding: 9px 24px; background: #0c1e3a; border-bottom: 2px solid #1f6feb; display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .bulk-bar.active { display: flex; }
+  .bulk-count { color: #58a6ff; font-weight: 600; font-size: 13px; }
+  .bulk-btn { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; border: 1px solid; }
+  .bulk-send { background: #238636; border-color: #2ea043; color: #fff; }
+  .bulk-send:hover { background: #2ea043; }
+  .bulk-clear { background: #21262d; border-color: #30363d; color: #8b949e; }
+  .bulk-clear:hover { background: #30363d; color: #e1e4e8; }
+
+  /* Queue progress bar in modal */
+  .queue-progress { padding: 8px 20px; background: #0c1e3a; border-bottom: 1px solid #1f6feb; font-size: 12px; color: #58a6ff; display: none; align-items: center; gap: 12px; }
+  .queue-progress.active { display: flex; }
+  .queue-bar-track { flex: 1; height: 3px; background: #30363d; border-radius: 2px; overflow: hidden; }
+  .queue-bar-fill { height: 100%; background: #1f6feb; border-radius: 2px; transition: width 0.3s; }
+
+  /* Find contacts panel */
+  .find-contacts-panel { display: none; margin: 10px 16px 4px; padding: 12px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; }
+  .find-contacts-panel.open { display: flex; flex-direction: column; gap: 10px; }
+  .find-product-rows { display: flex; flex-direction: column; gap: 6px; }
+  .find-product-row { display: flex; align-items: center; gap: 10px; }
+  .find-product-label { font-size: 12px; color: #e1e4e8; min-width: 180px; }
+  .find-panel-actions { display: flex; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid #21262d; margin-top: 2px; }
+  .stepper { display: flex; align-items: center; gap: 0; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+  .stepper button { background: #21262d; border: none; color: #e1e4e8; padding: 5px 10px; cursor: pointer; font-size: 14px; line-height: 1; }
+  .stepper button:hover { background: #30363d; }
+  .stepper input { width: 42px; background: #0d1117; border: none; border-left: 1px solid #30363d; border-right: 1px solid #30363d; color: #e1e4e8; text-align: center; font-size: 13px; padding: 5px 4px; outline: none; -moz-appearance: textfield; }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .focus-select { background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #8b949e; padding: 5px 8px; font-size: 12px; cursor: pointer; outline: none; max-width: 220px; }
+  .focus-select:focus { border-color: #58a6ff; }
+  .focus-select option { color: #e1e4e8; }
+  .panel-label { font-size: 12px; color: #8b949e; white-space: nowrap; }
+  .find-go-btn { padding: 5px 14px; border-radius: 6px; border: 1px solid #238636; background: #0d2a1a; color: #3fb950; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .find-go-btn:hover { background: #1a3d25; }
+  .find-go-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .find-cancel-btn { padding: 5px 10px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #8b949e; cursor: pointer; font-size: 12px; }
+  .find-cancel-btn:hover { background: #30363d; color: #e1e4e8; }
+
+  /* Report view */
+  #report-panel { display: none; padding: 16px 24px 60px; }
+  #report-panel.open { display: block; }
+  .report-date-group { margin-bottom: 24px; }
+  .report-date-heading { font-size: 13px; font-weight: 700; color: #58a6ff; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 0 8px; border-bottom: 1px solid #30363d; margin-bottom: 10px; }
+  .report-account-group { margin-bottom: 14px; padding-left: 4px; }
+  .report-account-name { font-size: 12px; font-weight: 600; color: #c9d1d9; padding: 4px 0 6px; }
+  .report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .report-table th { text-align: left; padding: 6px 10px; background: #161b22; color: #8b949e; font-weight: 600; border-bottom: 1px solid #30363d; white-space: nowrap; }
+  .report-table td { padding: 6px 10px; border-bottom: 1px solid #1c2128; vertical-align: top; }
+  .report-table tr:last-child td { border-bottom: none; }
+  .report-table tr:hover td { background: #161b22; }
+  .act-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .act-emailed { background: #0c1e3a; color: #58a6ff; border: 1px solid #1f6feb; }
+  .act-texted  { background: #2d2008; color: #d29922; border: 1px solid #9e6a03; }
+  .act-called  { background: #0d2a1a; color: #3fb950; border: 1px solid #238636; }
+  .report-empty { color: #484f58; font-style: italic; padding: 32px 0; text-align: center; }
+  .report-filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid #30363d; margin-bottom: 16px; }
+  .report-preset-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid #30363d; background: #21262d; color: #8b949e; cursor: pointer; font-size: 12px; white-space: nowrap; }
+  .report-preset-btn:hover { background: #30363d; color: #e1e4e8; }
+  .report-preset-btn.active { background: #0c1e3a; border-color: #1f6feb; color: #58a6ff; font-weight: 600; }
+  .report-date-sep { width: 1px; height: 18px; background: #30363d; margin: 0 4px; flex-shrink: 0; }
+  .report-date-range { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8b949e; }
+  .report-date-range input[type="date"] { background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer; }
+  .report-date-range input[type="date"]:focus { border-color: #58a6ff; }
+  .report-account-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8b949e; }
+  .report-account-select { background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer; max-width: 260px; }
+  .report-account-select:focus { border-color: #58a6ff; }
+  .report-account-select.filtered { border-color: #1f6feb; color: #58a6ff; background: #0c1e3a; }
+  .report-summary-bar { font-size: 12px; color: #8b949e; padding: 8px 0 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .report-summary-bar strong { color: #e1e4e8; }
+
+  /* Do Not Contact */
+  .dnc-col { width: 36px; text-align: center; padding: 8px 4px !important; }
+  .dnc-checkbox { width: 14px; height: 14px; cursor: pointer; accent-color: #f85149; }
+  tr.row-dnc td { background: #1a0a0a !important; opacity: 0.55; }
+  tr.row-dnc:hover td { background: #220d0d !important; }
+
+  /* Flag reason popover */
+  .flag-why { font-size: 11px; color: #8b949e; cursor: pointer; margin-left: 5px; text-decoration: underline dotted; white-space: nowrap; }
+  .flag-why:hover { color: #58a6ff; }
+  #flag-popover { display: none; position: fixed; z-index: 300; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 12px 14px; max-width: 340px; font-size: 12px; line-height: 1.6; color: #c9d1d9; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  #flag-popover.open { display: block; }
+  #flag-popover .pop-close { float: right; background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; margin: -4px -4px 0 8px; padding: 0 2px; }
+  #flag-popover .pop-close:hover { color: #e1e4e8; }
+  #flag-popover .pop-flag { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 11px; font-weight: 700; color: #0d1117; margin-bottom: 7px; }
+  #flag-popover .pop-reasons { margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid #30363d; }
+  #flag-popover .pop-reason-item { margin-bottom: 8px; }
+  #flag-popover .pop-reason-item:last-child { margin-bottom: 0; }
+  #flag-popover .pop-category { font-size: 12px; font-weight: 600; color: #e1e4e8; margin-bottom: 3px; }
+  #flag-popover .pop-description { font-size: 11px; color: #8b949e; }
+  #flag-popover .pop-detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #6e7681; margin-bottom: 3px; }
+  #flag-popover .pop-detail { font-size: 11px; color: #c9d1d9; }
+  .flag-edit-btn { background: none; border: none; color: #484f58; cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1; vertical-align: middle; }
+  .flag-edit-btn:hover { color: #58a6ff; }
+
+  /* Flag override editor */
+  #flag-edit-pop { display: none; position: fixed; z-index: 400; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; width: 270px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  #flag-edit-pop.open { display: block; }
+  .fep-title { font-weight: 600; color: #e1e4e8; margin-bottom: 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .fep-title button { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+  .fep-title button:hover { color: #e1e4e8; }
+  .fep-colors { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .fep-color-btn { padding: 5px 12px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; font-size: 12px; font-weight: 600; color: #0d1117; }
+  .fep-color-btn.fep-green { background: #3fb950; }
+  .fep-color-btn.fep-yellow { background: #e3b341; }
+  .fep-color-btn.fep-red { background: #f85149; }
+  .fep-color-btn.fep-clear { background: #21262d; color: #8b949e; border-color: #30363d; font-weight: 400; }
+  .fep-color-btn.fep-selected { border-color: #fff; box-shadow: 0 0 0 1px #fff; }
+  .fep-color-btn.fep-clear.fep-selected { border-color: #58a6ff; box-shadow: 0 0 0 1px #58a6ff; color: #58a6ff; }
+  .fep-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #6e7681; margin-bottom: 5px; }
+  #flag-edit-comment { width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; padding: 8px 10px; font-size: 12px; font-family: inherit; resize: vertical; min-height: 58px; outline: none; margin-bottom: 12px; box-sizing: border-box; }
+  #flag-edit-comment:focus { border-color: #58a6ff; }
+  .fep-footer { display: flex; justify-content: flex-end; gap: 8px; }
+  .fep-footer button { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #30363d; }
+  .fep-save { background: #238636; border-color: #2ea043 !important; color: #fff; }
+  .fep-save:hover { background: #2ea043; }
+  .fep-cancel { background: #21262d; color: #8b949e; }
+  .fep-cancel:hover { background: #30363d; color: #e1e4e8; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="brand-title">OutboundRun</h1>
+  <div class="meta" id="header-meta">Loading accounts...</div>
+  <div class="auth-block" style="display:flex; align-items:center; gap:12px; margin-left:auto;">
+    <span id="auth-email" style="font-size:12px; color:#8b949e"></span>
+    <button id="auth-signout" onclick="signOut()" style="background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">Sign out</button>
+  </div>
+</header>
+
+<div class="search-bar">
+  <input type="text" id="search" placeholder="Search accounts..." oninput="filterAccounts()">
+</div>
+
+<div class="controls">
+  <button onclick="showView('accounts')">Accounts</button>
+  <button onclick="showView('report')">Activity Report</button>
+  <button onclick="expandAll()">Expand All</button>
+  <button onclick="collapseAll()">Collapse All</button>
+  <button onclick="selectByFlag('GREEN')">Select All Green</button>
+  <button onclick="selectByFlag('YELLOW')">Select All Yellow</button>
+  <button onclick="selectVisible()">Select All Visible</button>
+  <button onclick="clearSelection()">Clear Selection</button>
+  <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
+  <button onclick="openSetup()" title="Configure your identity, company, products, and ICP">⚙ Settings</button>
+  <span class="stats" id="stats-bar"></span>
+</div>
+
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count" id="bulk-count">0 selected</span>
+  <button class="bulk-btn bulk-send" onclick="startBulkSend()">Send Selected Emails</button>
+  <button class="bulk-btn bulk-clear" onclick="clearSelection()">Clear Selection</button>
+</div>
+
+<div class="account-list" id="account-list"></div>
+<div id="report-panel"></div>
+<div style="height:60px"></div>
+
+
+<div class="status-bar">
+  <span id="status-text">Loading...</span>
+  <div class="progress"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <span id="progress-label">0 / 0</span>
+</div>
+
+<!-- Flag reason popover -->
+<div id="flag-popover">
+  <button class="pop-close" onclick="closeFlagPopover()">✕</button>
+  <div id="pop-flag-badge" class="pop-flag"></div>
+  <div id="pop-reasons" class="pop-reasons"></div>
+  <div class="pop-detail-label">This email</div>
+  <div id="pop-flag-reason" class="pop-detail"></div>
+</div>
+
+<!-- Flag override editor -->
+<div id="flag-edit-pop">
+  <div class="fep-title">
+    <span>Override flag</span>
+    <button onclick="closeFlagEdit()">&#x2715;</button>
+  </div>
+  <div class="fep-label">Color</div>
+  <div class="fep-colors">
+    <button class="fep-color-btn fep-green"  onclick="fepSelectColor('GREEN')"  id="fep-btn-GREEN">GREEN</button>
+    <button class="fep-color-btn fep-yellow" onclick="fepSelectColor('YELLOW')" id="fep-btn-YELLOW">YELLOW</button>
+    <button class="fep-color-btn fep-red"    onclick="fepSelectColor('RED')"    id="fep-btn-RED">RED</button>
+    <button class="fep-color-btn fep-clear"  onclick="fepSelectColor('')"       id="fep-btn-">Clear override</button>
+  </div>
+  <div class="fep-label">Comment (optional)</div>
+  <textarea id="flag-edit-comment" placeholder="Reason for override..."></textarea>
+  <div class="fep-footer">
+    <button class="fep-cancel" onclick="closeFlagEdit()">Cancel</button>
+    <button class="fep-save"   onclick="saveFlagEdit()">Save</button>
+  </div>
+</div>
+
+<!-- Email Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="flex:1">
+        <div class="to">To: <strong id="modal-to-name"></strong></div>
+        <div class="to" style="margin-top:4px">Email: <strong id="modal-to-email"></strong> <button class="copy-btn" onclick="copyField('email')">Copy</button></div>
+      </div>
+      <button class="close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="queue-progress" id="queue-progress">
+      <span id="queue-label">Email 1 of 1</span>
+      <div class="queue-bar-track"><div class="queue-bar-fill" id="queue-bar-fill" style="width:0%"></div></div>
+      <button class="bulk-btn bulk-clear" style="padding:3px 10px;font-size:11px" onclick="cancelQueue()">Cancel Queue</button>
+    </div>
+    <div class="modal-subject">
+      <input type="text" id="modal-subject" placeholder="Subject">
+      <button class="copy-btn" onclick="copyField('subject')">Copy</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="modal-body-text"></textarea>
+      <div style="margin-top:8px;text-align:right"><button class="copy-btn" onclick="copyField('body')">Copy Body</button></div>
+    </div>
+    <div class="modal-footer">
+      <span class="status-msg" id="modal-status"></span>
+      <button class="btn btn-skip" onclick="skipEmail()">Skip</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="sendEmail()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Setup / Settings modal ─────────────────────────────────────── -->
+<style>
+  .setup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
+  .setup-overlay.open { display: flex; }
+  .setup-panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; width: 100%; max-width: 720px; padding: 28px 32px; color: #e1e4e8; }
+  .setup-panel h2 { font-size: 20px; font-weight: 600; color: #58a6ff; margin-bottom: 8px; }
+  .setup-panel p.setup-lead { color: #8b949e; font-size: 13px; margin-bottom: 20px; }
+  .setup-section { border-top: 1px solid #21262d; padding: 18px 0; }
+  .setup-section:first-of-type { border-top: none; padding-top: 0; }
+  .setup-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin-bottom: 12px; }
+  .setup-row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; margin-bottom: 10px; align-items: center; }
+  .setup-row.stack { grid-template-columns: 1fr; }
+  .setup-row label { font-size: 12px; color: #8b949e; }
+  .setup-row input, .setup-row textarea, .setup-row select { width: 100%; padding: 7px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 13px; font-family: inherit; }
+  .setup-row textarea { min-height: 60px; resize: vertical; }
+  .setup-row input:focus, .setup-row textarea:focus, .setup-row select:focus { border-color: #58a6ff; outline: none; }
+  .setup-products { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .setup-product-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; align-items: center; }
+  .setup-product-row input { padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 13px; }
+  .setup-product-row button { background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+  .setup-product-row button:hover { color: #f85149; border-color: #f85149; }
+  .setup-add-btn { background: #21262d; border: 1px solid #30363d; color: #58a6ff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .setup-add-btn:hover { border-color: #58a6ff; }
+  .setup-hint { font-size: 12px; color: #8b949e; margin-bottom: 12px; line-height: 1.5; }
+  .setup-personas { display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px; }
+  .setup-persona-row { border: 1px solid #30363d; border-radius: 6px; padding: 12px; background: #0d1117; display: flex; flex-direction: column; gap: 8px; }
+  .persona-row-head { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+  .setup-persona-row input, .setup-persona-row textarea { padding: 6px 10px; background: #0f1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 13px; font-family: inherit; width: 100%; }
+  .setup-persona-row textarea { resize: vertical; min-height: 40px; }
+  .setup-persona-row input:focus, .setup-persona-row textarea:focus { border-color: #58a6ff; outline: none; }
+  .persona-row-head button { background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+  .persona-row-head button:hover { color: #f85149; border-color: #f85149; }
+  .setup-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 18px; border-top: 1px solid #21262d; margin-top: 8px; }
+  .setup-footer .btn-primary { background: #238636; border: 1px solid #2ea043; color: white; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .setup-footer .btn-primary:hover { background: #2ea043; }
+  .setup-footer .btn-secondary { background: #21262d; border: 1px solid #30363d; color: #e1e4e8; padding: 8px 18px; border-radius: 6px; cursor: pointer; }
+  .setup-status { font-size: 12px; color: #8b949e; margin-right: auto; align-self: center; }
+  .setup-status.err { color: #f85149; }
+  .setup-status.ok { color: #3fb950; }
+  .upload-drop { border: 2px dashed #30363d; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; color: #8b949e; }
+  .upload-drop:hover, .upload-drop.dragover { border-color: #58a6ff; color: #58a6ff; background: #0d1117; }
+  .upload-preview { margin-top: 12px; font-size: 12px; color: #8b949e; max-height: 200px; overflow-y: auto; background: #0d1117; padding: 10px; border-radius: 6px; }
+  .upload-mode { display: flex; gap: 12px; margin: 12px 0; font-size: 13px; color: #8b949e; }
+</style>
+
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-panel">
+    <h2 id="setup-title">Set up your workspace</h2>
+    <p class="setup-lead" id="setup-lead">Configure your identity, company, and target accounts. This information is used to personalize outreach and prompts. Your data is stored privately in your workspace. Only you can see it.</p>
+
+    <div class="setup-section">
+      <h3>Your identity</h3>
+      <div class="setup-row"><label>Full name</label><input type="text" id="cfg-user-name" placeholder="Jane Doe"></div>
+      <div class="setup-row"><label>Role / title</label><input type="text" id="cfg-user-role" placeholder="Account Executive"></div>
+      <div class="setup-row"><label>Work email</label><input type="email" id="cfg-user-email" placeholder="jane@acmeco.com"></div>
+      <div class="setup-row"><label>Phone (optional)</label><input type="text" id="cfg-user-phone" placeholder="555-123-4567"></div>
+      <div class="setup-row stack"><label>Address lines (optional, one per line)</label><textarea id="cfg-user-address" placeholder="123 Main St&#10;San Francisco, CA 94103"></textarea></div>
+      <div class="setup-row stack"><label>Signature override (optional — leave blank to auto-build from fields above)</label><textarea id="cfg-user-sig" placeholder="--&#10;Jane Doe&#10;Account Executive, AcmeCo"></textarea></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Your company &amp; products</h3>
+      <div class="setup-row"><label>Company name</label><input type="text" id="cfg-company-name" placeholder="AcmeCo"></div>
+      <div class="setup-row stack"><label>One-line value prop (optional)</label><input type="text" id="cfg-company-vp" placeholder="Data platform for enterprise sales teams"></div>
+      <div class="setup-row stack">
+        <label>Product catalog (used in outreach + GTM hypotheses)</label>
+        <div class="setup-products" id="cfg-products"></div>
+        <div><button type="button" class="setup-add-btn" onclick="addProductRow()">+ Add product</button></div>
+      </div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Ideal customer profile</h3>
+      <div class="setup-row"><label>Industry</label><input type="text" id="cfg-icp-industry" placeholder="Healthcare / Life Sciences"></div>
+      <div class="setup-row stack"><label>Industry descriptor (used in prompts, e.g. "medtech", "fintech")</label><input type="text" id="cfg-icp-descriptor" placeholder="medtech"></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Buyer personas (optional)</h3>
+      <p class="setup-hint">Each persona becomes a distinct email variant, with hooks tailored to their pain and priorities. Add as many as you need.</p>
+      <div class="setup-personas" id="cfg-personas"></div>
+      <div><button type="button" class="setup-add-btn" onclick="addPersonaRow()">+ Add persona</button></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Credible external sources</h3>
+      <p class="setup-hint">The trusted sources OutboundRun will pull research from. One per line.</p>
+      <div class="setup-row stack"><textarea id="cfg-credible-sources" rows="6" placeholder="SEC EDGAR (10-K, 10-Q filings)&#10;Company earnings-call transcripts&#10;Company website + press releases&#10;Bloomberg / Reuters / AP News&#10;Industry trade publications"></textarea></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Internal sources</h3>
+      <p class="setup-hint">Your own data OutboundRun should cross-reference for the value hypothesis. One per line.</p>
+      <div class="setup-row stack"><textarea id="cfg-internal-sources" rows="4" placeholder="CRM (Salesforce, HubSpot, Pipedrive)&#10;Past deal notes&#10;Marketing analytics"></textarea></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Contact-discovery sources</h3>
+      <p class="setup-hint">The tools your reps use to look up contact details. OutboundRun suggests which tool to use per contact.</p>
+      <div class="setup-row stack"><textarea id="cfg-contact-discovery" rows="4" placeholder="LinkedIn Sales Navigator&#10;ZoomInfo&#10;Apollo.io&#10;Public web research"></textarea></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>CRM integration (optional)</h3>
+      <div class="setup-row"><label>CRM type</label>
+        <select id="cfg-crm-type">
+          <option value="none">None (web research only)</option>
+          <option value="salesforce_org62">Salesforce (Org62 SOQL)</option>
+        </select>
+      </div>
+      <div class="setup-row stack"><label>Team roles to include (Salesforce only, one per line)</label><textarea id="cfg-crm-roles" placeholder="Account Executive&#10;Solution Engineer"></textarea></div>
+    </div>
+
+    <div class="setup-section">
+      <h3>Email send behavior</h3>
+      <div class="setup-row"><label>Sender</label>
+        <select id="cfg-email-sender">
+          <option value="clipboard">Copy to clipboard (send from your own mail client)</option>
+        </select>
+      </div>
+      <div class="setup-hint">Emails are copied to your clipboard so you can paste and send from whatever mail client you use. OutboundRun never sends email on your behalf.</div>
+      <div class="setup-row"><label>CTA length (minutes)</label><input type="number" id="cfg-email-cta" min="10" max="60" value="20"></div>
+    </div>
+
+    <div class="setup-footer">
+      <span class="setup-status" id="setup-status"></span>
+      <button class="btn-secondary" onclick="closeSetup()">Cancel</button>
+      <button class="btn-primary" onclick="saveSetup()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Upload accounts modal ─────────────────────────────────────── -->
+<div class="setup-overlay" id="upload-overlay">
+  <div class="setup-panel">
+    <h2>Upload account list</h2>
+    <p class="setup-lead">Drop a CSV. Required column: <code>account_name</code> (or <code>name</code>/<code>company</code>). Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>.</p>
+
+    <div class="upload-drop" id="upload-drop" onclick="document.getElementById('upload-file').click()">
+      <div style="font-size:28px; margin-bottom:8px">⬆</div>
+      <div>Click or drop a CSV here</div>
+      <div style="font-size:11px; margin-top:6px">Accounts will be added to your workspace</div>
+    </div>
+    <input type="file" id="upload-file" accept=".csv,text/csv" style="display:none" onchange="onUploadFile(event)">
+
+    <div class="upload-mode">
+      <label><input type="radio" name="upload-mode" value="merge" checked> Merge (add new, keep existing)</label>
+      <label><input type="radio" name="upload-mode" value="replace"> Replace (wipe existing first)</label>
+    </div>
+
+    <div class="upload-preview" id="upload-preview" style="display:none"></div>
+
+    <div class="setup-footer">
+      <span class="setup-status" id="upload-status"></span>
+      <button class="btn-secondary" onclick="closeUploadAccounts()">Cancel</button>
+      <button class="btn-primary" id="upload-submit-btn" onclick="doUploadAccounts()" disabled>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase auth guard: MUST run before any /api/ calls -->
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPABASE_URL = 'https://bofukvujflsamvhzdrxh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, detectSessionInUrl: true, autoRefreshToken: true },
+  });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.replace('/login/');
+  } else {
+    window.SUPABASE = supabase;
+    window.AUTH_TOKEN = session.access_token;
+    window.AUTH_EMAIL = session.user.email;
+    const el = document.getElementById('auth-email');
+    if (el) el.textContent = session.user.email;
+    // Kick off the app once auth is ready
+    document.dispatchEvent(new Event('auth-ready'));
+  }
+  window.signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.replace('/login/');
+  };
+  supabase.auth.onAuthStateChange((_event, sess) => {
+    if (sess) {
+      window.AUTH_TOKEN = sess.access_token;
+    } else {
+      window.location.replace('/login/');
+    }
+  });
+</script>
+
+<script>
+// apiFetch: same as fetch, but adds Authorization: Bearer <token>.
+// All /api/* calls in this file go through this helper.
+async function apiFetch(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, {
+    'Authorization': 'Bearer ' + (window.AUTH_TOKEN || ''),
+  });
+  return fetch(path, opts);
+}
+
+// Poll a background job until done or error. Returns the result payload.
+async function pollJob(jobId, intervalMs = 4000) {
+  while (true) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    const resp = await apiFetch(`/api/job-status?job_id=${encodeURIComponent(jobId)}`);
+    if (!resp.ok) throw new Error(await respError(resp));
+    const job = await resp.json();
+    if (job.status === 'done')   return job.result;
+    if (job.status === 'error')  throw new Error(job.error || 'Job failed');
+    // status === 'running' — keep polling
+  }
+}
+
+// Safe JSON error extractor — never throws even if response body is not JSON
+async function respError(resp) {
+  try {
+    const data = await resp.json();
+    return data.error || resp.statusText || `HTTP ${resp.status}`;
+  } catch (_) {
+    try {
+      const text = await resp.text();
+      return text.slice(0, 200) || resp.statusText || `HTTP ${resp.status}`;
+    } catch (_) {
+      return resp.statusText || `HTTP ${resp.status}`;
+    }
+  }
+}
+
+let allAccounts = [];
+let currentEmailContext = null;
+let emailStates = {};
+let contactActions = {};
+let doNotContact = new Set(); // key: "accountNumber_email"
+let selectedEmails = new Set(); // key: "accountNumber_email"
+let emailQueue = [];
+let queueIndex = 0;
+// key: "accountNumber_email_flag" | "_human" | "_exec"  value: 'GREEN'|'YELLOW'|'RED'|''
+let flagOverrides = {};
+// key same as flagOverrides  value: comment string
+let flagOverrideComments = {};
+
+async function init() {
+  try {
+    const resp = await apiFetch('/api/accounts');
+    if (!resp.ok) throw new Error(await respError(resp));
+    const payload = await resp.json();
+    allAccounts = payload.accounts || [];
+    // Load persisted actions and DNC flags from contact data
+    allAccounts.forEach(acc => {
+      (acc.contacts || []).forEach(c => {
+        if (c.email && c.email !== 'Not found') {
+          const key = `${acc.account_number}_${c.email}`;
+          if (c.action && c.action !== 'none') {
+            contactActions[key] = { action: c.action, date: c.action_date || '' };
+          }
+          if (c.do_not_contact) {
+            doNotContact.add(key);
+          }
+        }
+      });
+    });
+    renderAccounts(allAccounts);
+    document.getElementById('header-meta').textContent = `${allAccounts.length} accounts`;
+    document.getElementById('status-text').textContent = allAccounts.length > 0 ? 'All accounts loaded' : 'No accounts yet. Upload a CSV to get started.';
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-label').textContent = `${allAccounts.length} / ${allAccounts.length}`;
+    updateStats();
+  } catch(e) {
+    document.getElementById('account-list').innerHTML = '<div style="padding:40px;color:#8b949e;text-align:center">Could not load accounts: ' + (e.message || e) + '</div>';
+    document.getElementById('status-text').textContent = 'Error loading accounts';
+  }
+}
+
+function updateStats() {
+  const total = allAccounts.reduce((n, a) => n + (a.contacts ? a.contacts.length : 0), 0);
+  const sent = Object.values(emailStates).filter(s => s === 'sent').length;
+  const skipped = Object.values(emailStates).filter(s => s === 'skipped').length;
+  const emailed = Object.values(contactActions).filter(a => a.action === 'emailed').length;
+  const texted  = Object.values(contactActions).filter(a => a.action === 'texted').length;
+  const called  = Object.values(contactActions).filter(a => a.action === 'called').length;
+  const parts = [`${allAccounts.length} accounts`, `${total} contacts`, `${sent} sent`, `${skipped} skipped`];
+  if (emailed) parts.push(`${emailed} emailed`);
+  if (texted)  parts.push(`${texted} texted`);
+  if (called)  parts.push(`${called} called`);
+  document.getElementById('stats-bar').textContent = parts.join(' · ');
+}
+
+function renderAccounts(accounts) {
+  const list = document.getElementById('account-list');
+  list.innerHTML = '';
+  accounts.forEach(acc => {
+    list.appendChild(buildAccountBlock(acc));
+  });
+}
+
+function filterAccounts() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = q ? allAccounts.filter(a => a.account_name.toLowerCase().includes(q)) : allAccounts;
+  renderAccounts(filtered);
+}
+
+function buildAccountOutreachBadge(acc) {
+  const contacts = acc.contacts || [];
+  const total = contacts.filter(c => c.email && c.email !== 'Not found').length;
+  if (!total) return '';
+
+  const emailed = [], texted = [], called = [];
+  contacts.forEach(c => {
+    const key = `${acc.account_number}_${c.email}`;
+    const a = contactActions[key];
+    if (!a || a.action === 'none') return;
+    if (a.action === 'emailed') emailed.push(a.date);
+    else if (a.action === 'texted') texted.push(a.date);
+    else if (a.action === 'called') called.push(a.date);
+  });
+
+  const parts = [];
+  if (emailed.length) {
+    const dates = emailed.filter(Boolean).sort();
+    const range = dates.length > 1
+      ? `${fmtDate(dates[0])}–${fmtDate(dates[dates.length - 1])}`
+      : dates[0] ? fmtDate(dates[0]) : '';
+    parts.push(`<span class="badge green">${emailed.length}/${total} emailed${range ? ' · ' + range : ''}</span>`);
+  }
+  if (texted.length)  parts.push(`<span class="badge yellow">${texted.length} texted</span>`);
+  if (called.length)  parts.push(`<span class="badge blue">${called.length} called</span>`);
+  if (!parts.length)  parts.push(`<span class="badge">${total} contacts · no outreach</span>`);
+  return parts.join('');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m - 1]} ${+d}`;
+}
+
+function buildAccountBlock(acc) {
+  const div = document.createElement('div');
+  div.className = 'account-block';
+  div.dataset.id = acc.account_number;
+
+  const emailCount = acc.contacts ? acc.contacts.length : 0;
+  const hasBadge = acc.gtm_products && acc.gtm_products.length > 0;
+  const outreachBadge = buildAccountOutreachBadge(acc);
+
+  div.innerHTML = `
+    <div class="account-header" onclick="toggleAccount(this)">
+      <span class="chevron">&#9654;</span>
+      <span class="name">${acc.account_name}</span>
+      <span class="badges" style="flex:1">
+        ${outreachBadge}
+      </span>
+      <span class="badges">
+        <span class="badge">${acc.account_number}</span>
+        ${emailCount > 0 ? `<span class="badge blue">${emailCount} contacts</span>` : ''}
+        ${hasBadge ? acc.gtm_products.map(p => `<span class="badge green">${p}</span>`).join('') : '<span class="badge loading">Pending</span>'}
+      </span>
+    </div>
+    <div class="account-body">
+      ${buildSections(acc)}
+    </div>
+  `;
+  return div;
+}
+
+function buildSections(acc) {
+  return `
+    ${buildSection('Account Team', buildTeamTable(acc), false, null, null)}
+    ${buildSection('Target Contacts', buildContactsTable(acc), false, null, null, buildContactsHeaderAction(acc))}
+    ${buildSection('GTM Value Hypothesis', buildHypothesis(acc), false, acc.hypothesis_refreshed || acc.last_refreshed || null, null, buildGtmHeaderAction(acc))}
+    ${buildSection('Research Summary', buildResearch(acc), false, acc.research_refreshed || null, null, null, acc.account_number)}
+  `;
+}
+
+function buildGtmHeaderAction(acc) {
+  const d = acc.hypothesis_refreshed || acc.last_refreshed || null;
+  return `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+    <span style="display:flex;align-items:center;gap:6px">
+      <button class="refresh-btn" id="gtm-refresh-btn-${acc.account_number}" onclick="refreshGtm('${acc.account_number}')">↻ Refresh GTM</button>
+      <span id="gtm-refresh-status-${acc.account_number}" style="font-size:11px;color:#8b949e"></span>
+    </span>
+    <span id="gtm-refresh-date-${acc.account_number}" style="font-size:10px;color:#6e7681">${d ? `Last refreshed ${d}` : 'Never refreshed'}</span>
+  </span>`;
+}
+
+function buildSection(label, content, defaultOpen, dateTag, accountNumber, headerExtra, researchAccountNumber) {
+  const meta = accountNumber ? `
+    <div class="section-header-meta" onclick="event.stopPropagation()" style="flex-direction:column;align-items:flex-end;gap:2px">
+      <span style="display:flex;align-items:center;gap:6px">
+        ${dateTag ? `<span class="date-tag">Generated ${dateTag}</span>` : '<span class="date-tag">Generated Jun 21, 2026</span>'}
+        <button class="refresh-btn" id="refresh-btn-${accountNumber}" onclick="refreshAccount('${accountNumber}')">↻ Refresh</button>
+      </span>
+      <span id="account-refresh-date-${accountNumber}" style="font-size:10px;color:#6e7681">${dateTag ? `Last refreshed ${dateTag}` : 'Never refreshed'}</span>
+    </div>` : '';
+  const researchMeta = researchAccountNumber ? `
+    <div class="section-header-meta" onclick="event.stopPropagation()" style="flex-direction:column;align-items:flex-end;gap:2px">
+      <span style="display:flex;align-items:center;gap:6px">
+        <button class="refresh-btn" id="research-refresh-btn-${researchAccountNumber}" onclick="refreshResearch('${researchAccountNumber}')">↻ Refresh</button>
+      </span>
+      <span id="research-refresh-date-${researchAccountNumber}" style="font-size:10px;color:#6e7681">${dateTag ? `Last refreshed ${dateTag}` : 'Never refreshed'}</span>
+    </div>` : '';
+  const extra = headerExtra ? `<div class="section-header-meta" onclick="event.stopPropagation()">${headerExtra}</div>` : '';
+  return `
+    <div class="section-block">
+      <div class="section-header ${defaultOpen ? 'open' : ''}" onclick="toggleSection(this)">
+        <span class="chevron">${defaultOpen ? '&#9660;' : '&#9654;'}</span>
+        <span class="label">${label}</span>
+        ${meta}
+        ${researchMeta}
+        ${extra}
+      </div>
+      <div class="section-content ${defaultOpen ? 'open' : ''}">${content}</div>
+    </div>
+  `;
+}
+
+function buildTeamTable(acc) {
+  if (!acc.team || acc.team.length === 0) return '<p class="loading-placeholder">No internal team data found for this account.</p>';
+  // Preserve insertion order from the data (Core AE first, Data Foundations AE second, rest after)
+  const seen = new Set();
+  const roles = [];
+  for (const m of acc.team) {
+    if (!seen.has(m.role)) { seen.add(m.role); roles.push(m.role); }
+  }
+  const header = roles.map(r => `<th>${r}</th>`).join('');
+  const cells = roles.map(r => {
+    const m = acc.team.find(t => t.role === r);
+    return `<td>${m ? m.name : '<span class="not-found">—</span>'}</td>`;
+  }).join('');
+  return `<table><thead><tr>${header}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
+}
+
+function flagColor(f) {
+  return f === 'RED' ? '#f85149' : f === 'YELLOW' ? '#e3b341' : f === 'GREEN' ? '#3fb950' : '#8b949e';
+}
+
+function buildFlagCell(key, type, displayFlag, origFlag, categoriesJson, reason, _unused, label) {
+  const overrideKey = key + '_' + type;
+  const isOverridden = !!flagOverrides[overrideKey];
+  const comment = flagOverrideComments[overrideKey] || '';
+  const color = flagColor(displayFlag);
+
+  if (!displayFlag) return `<span style="color:#484f58;font-style:italic;font-size:11px">—<button class="flag-edit-btn" title="Override flag" onclick="openFlagEdit(event,'${key}','${type}','${escJs(displayFlag || '')}')">✎</button></span>`;
+
+  let whyHandler;
+  if (type === 'flag' && categoriesJson) {
+    whyHandler = `showFlagReason(event,'${origFlag}','${flagColor(origFlag)}','${categoriesJson}','${reason}')`;
+  } else {
+    const popLabel = type === 'human' ? 'Human?' : type === 'exec' ? 'Exec?' : label;
+    whyHandler = `showSimplePopover(event,'${popLabel}','${origFlag}','${flagColor(origFlag)}','${reason}')`;
+  }
+
+  const overrideDot = isOverridden
+    ? `<span title="Manually overridden${comment ? ': ' + comment : ''}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#58a6ff;margin-left:1px;vertical-align:middle;flex-shrink:0;cursor:default"></span>`
+    : '';
+
+  return `<span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">` +
+    `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#0d1117;background:${color}">${displayFlag}</span>` +
+    `${overrideDot}` +
+    `<span class="flag-why" onclick="${whyHandler}" tabindex="0">why?</span>` +
+    `<button class="flag-edit-btn" title="Override flag" onclick="openFlagEdit(event,'${escJs(key)}','${type}','${escJs(displayFlag || '')}')">✎</button>` +
+    `</span>`;
+}
+
+// ── Flag override editor ──────────────────────────────────────────────────
+
+let fepContext = null; // { key, type }
+let fepSelectedColor = null;
+
+function openFlagEdit(e, key, type, currentFlag) {
+  e.stopPropagation();
+  closeFlagPopover();
+  fepContext = { key, type };
+  const overrideKey = key + '_' + type;
+  fepSelectedColor = flagOverrides[overrideKey] !== undefined ? flagOverrides[overrideKey] : currentFlag;
+  document.getElementById('flag-edit-comment').value = flagOverrideComments[overrideKey] || '';
+  fepHighlight(fepSelectedColor);
+  const pop = document.getElementById('flag-edit-pop');
+  pop.classList.add('open');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = e.clientX + 12, y = e.clientY + 12;
+  pop.style.left = x + 'px';
+  pop.style.top  = y + 'px';
+  requestAnimationFrame(() => {
+    const r = pop.getBoundingClientRect();
+    if (r.right  > vw - 8) pop.style.left = Math.max(8, vw - r.width  - 8) + 'px';
+    if (r.bottom > vh - 8) pop.style.top  = Math.max(8, vh - r.height - 8) + 'px';
+  });
+}
+
+function fepSelectColor(color) {
+  fepSelectedColor = color;
+  fepHighlight(color);
+}
+
+function fepHighlight(color) {
+  ['GREEN','YELLOW','RED',''].forEach(c => {
+    const btn = document.getElementById('fep-btn-' + c);
+    if (btn) btn.classList.toggle('fep-selected', c === color);
+  });
+}
+
+function closeFlagEdit() {
+  document.getElementById('flag-edit-pop').classList.remove('open');
+  fepContext = null;
+}
+
+function saveFlagEdit() {
+  if (!fepContext) return;
+  const { key, type } = fepContext;
+  const overrideKey = key + '_' + type;
+  const comment = document.getElementById('flag-edit-comment').value.trim();
+  if (fepSelectedColor === '' || fepSelectedColor === null) {
+    delete flagOverrides[overrideKey];
+    delete flagOverrideComments[overrideKey];
+  } else {
+    flagOverrides[overrideKey] = fepSelectedColor;
+    if (comment) flagOverrideComments[overrideKey] = comment;
+    else delete flagOverrideComments[overrideKey];
+  }
+  closeFlagEdit();
+  // Re-render only the affected account block
+  const accountNumber = key.split('_')[0];
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (acc) {
+    const block = document.querySelector(`.account-block[data-id="${accountNumber}"]`);
+    if (block) {
+      const wasAccountOpen = block.querySelector('.account-header')?.classList.contains('open');
+      const openSections = Array.from(block.querySelectorAll('.section-header.open')).map((sh, i) => i);
+      const newBlock = buildAccountBlock(acc);
+      if (wasAccountOpen) {
+        newBlock.querySelector('.account-header').classList.add('open');
+        newBlock.querySelector('.account-body').classList.add('open');
+        const newHeaders = newBlock.querySelectorAll('.section-header');
+        openSections.forEach(i => {
+          if (newHeaders[i]) { newHeaders[i].classList.add('open'); newHeaders[i].nextElementSibling.classList.add('open'); }
+        });
+      }
+      block.replaceWith(newBlock);
+    }
+  }
+  updateStats();
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('flag-edit-pop');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target)) closeFlagEdit();
+});
+
+function buildContactsHeaderAction(acc) {
+  return `<span style="display:flex;align-items:center;gap:6px;font-size:12px">
+    <span style="color:#8b949e;font-weight:400;text-transform:none;letter-spacing:0">Apply to all:</span>
+    <select class="action-select" id="header-action-${acc.account_number}" onchange="applyHeaderAction('${acc.account_number}', this)">
+      <option value="none">No Action</option>
+      <option value="emailed">Emailed</option>
+      <option value="texted">Texted</option>
+      <option value="called">Called</option>
+    </select>
+    <input type="date" class="action-date" id="header-date-${acc.account_number}" style="display:none;width:auto" onchange="applyHeaderDate('${acc.account_number}', this.value)">
+    <button class="send-all-btn" id="send-all-btn-${acc.account_number}" onclick="sendAllForAccount('${acc.account_number}')">Send All</button>
+    <button class="refresh-btn" id="find-more-btn-${acc.account_number}" onclick="toggleFindPanel('${acc.account_number}')">+ Find Contacts</button>
+    <span id="send-all-status-${acc.account_number}" style="color:#8b949e;font-size:11px"></span>
+  </span>`;
+}
+
+function buildFindContactsPanel(acc) {
+  const products = (acc.gtm_products || []);
+  const an = acc.account_number;
+  // If no GTM products yet, show a single generic row
+  const rows = products.length
+    ? products.map((p, i) => `
+        <div class="find-product-row">
+          <span class="find-product-label">${escHtml(p)}</span>
+          <div class="stepper">
+            <button onclick="stepProductCount('${an}',${i},-1)">−</button>
+            <input type="number" id="find-count-${an}-${i}" value="2" min="0" max="20">
+            <button onclick="stepProductCount('${an}',${i},1)">+</button>
+          </div>
+        </div>`).join('')
+    : `<div class="find-product-row">
+        <span class="find-product-label" style="color:#8b949e">Any area</span>
+        <div class="stepper">
+          <button onclick="stepProductCount('${an}',0,-1)">−</button>
+          <input type="number" id="find-count-${an}-0" value="5" min="0" max="20">
+          <button onclick="stepProductCount('${an}',0,1)">+</button>
+        </div>
+      </div>`;
+  return `<div class="find-contacts-panel" id="find-panel-${an}">
+    <div class="find-product-rows">${rows}</div>
+    <div class="find-panel-actions">
+      <button class="find-go-btn" id="find-go-btn-${an}" onclick="findMoreContacts('${an}')">Find</button>
+      <button class="find-cancel-btn" onclick="toggleFindPanel('${an}')">Cancel</button>
+      <span id="find-more-status-${an}" style="font-size:11px;color:#8b949e"></span>
+    </div>
+  </div>`;
+}
+
+function buildContactsTable(acc) {
+  const panel = buildFindContactsPanel(acc);
+  if (!acc.contacts || acc.contacts.length === 0) return panel + '<p class="loading-placeholder">No contacts identified yet.</p>';
+  const tableId = `tbl-${acc.account_number}`;
+  const rows = acc.contacts.map(c => {
+    const key = `${acc.account_number}_${c.email}`;
+    const hasEmail = c.email && c.email !== 'Not found';
+    const isSelected = selectedEmails.has(key);
+    const isDnc = doNotContact.has(key);
+    const state = emailStates[key];
+    const stateTag = state === 'sent' ? '<span class="sent-tag">Sent</span>' : state === 'skipped' ? '<span class="skipped-tag">Skipped</span>' : '';
+    const emailCell = hasEmail
+      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}`
+      : `<span class="not-found">Not found</span>`;
+    const mobileCell = c.mobile && c.mobile !== 'Not found' ? c.mobile : '<span class="not-found">Not found</span>';
+    const action = contactActions[key] || { action: 'none', date: '' };
+    const dateField = action.action !== 'none'
+      ? `<input type="date" class="action-date" value="${action.date}" onchange="setActionDate('${key}', this.value)">`
+      : '';
+    const selectClass = action.action === 'emailed' ? 'action-emailed' : action.action === 'texted' ? 'action-texted' : action.action === 'called' ? 'action-called' : '';
+    const actionCell = `<div class="action-cell" data-row-action="${key}">
+      <select class="action-select ${selectClass}" onchange="setAction('${key}', this)">
+        <option value="none"  ${action.action==='none'    ? 'selected':''}>No Action</option>
+        <option value="emailed" ${action.action==='emailed' ? 'selected':''}>Emailed</option>
+        <option value="texted"  ${action.action==='texted'  ? 'selected':''}>Texted</option>
+        <option value="called"  ${action.action==='called'  ? 'selected':''}>Called</option>
+      </select>
+      ${dateField}
+    </div>`;
+    const flagOverride = flagOverrides[key + '_flag'];
+    const humanOverride = flagOverrides[key + '_human'];
+    const execOverride  = flagOverrides[key + '_exec'];
+    const flagCell  = buildFlagCell(key, 'flag',  flagOverride  || c.flag,       c.flag,       escJs(JSON.stringify(c.flag_categories || (c.flag_category ? [c.flag_category] : []))), escJs(c.flag_reason  || ''), escJs(c.human_reason || ''), 'Flag');
+    const humanCell = buildFlagCell(key, 'human', humanOverride || c.human_flag, c.human_flag, null, escJs(c.human_reason || ''), '', 'Human?');
+    const execCell  = buildFlagCell(key, 'exec',  execOverride  || c.exec_flag,  c.exec_flag,  null, escJs(c.exec_reason  || ''), '', 'Exec?');
+    const checkboxCell = hasEmail
+      ? `<td class="check-col"><input type="checkbox" class="email-checkbox" data-key="${key}" data-account="${acc.account_number}" data-name="${escJs(c.name)}" data-email="${escJs(c.email)}" data-subject="${escJs(c.subject)}" data-body="${escJs(c.body)}" ${isSelected ? 'checked' : ''} onchange="toggleCheckbox(this)"></td>`
+      : `<td class="check-col"></td>`;
+    const dncCell = hasEmail
+      ? `<td class="dnc-col" title="Do Not Contact"><input type="checkbox" class="dnc-checkbox" data-key="${key}" data-account="${acc.account_number}" data-email="${escJs(c.email)}" ${isDnc ? 'checked' : ''} onchange="toggleDnc(this)"></td>`
+      : `<td class="dnc-col"></td>`;
+    const rowClass = isDnc ? 'row-dnc' : (isSelected ? 'row-selected' : '');
+    return `<tr class="${rowClass}">
+      ${checkboxCell}
+      <td>${c.name}</td>
+      <td>${c.title}</td>
+      <td>${emailCell}</td>
+      <td>${mobileCell}</td>
+      <td style="max-width:240px;font-size:12px;color:#8b949e">${c.hook || ''}</td>
+      <td style="text-align:center">${flagCell}</td>
+      <td style="text-align:center">${humanCell}</td>
+      <td style="text-align:center">${execCell}</td>
+      <td>${actionCell}</td>
+      ${dncCell}
+    </tr>`;
+  }).join('');
+  return panel + `<table id="${tableId}">
+    <thead><tr>
+      <th class="check-col"><input type="checkbox" class="select-all-table" title="Select all in this table" onchange="toggleTableAll(this, '${tableId}')"></th>
+      <th>Name</th><th>Title</th><th>Email / Draft</th><th>Mobile</th><th>Hook</th><th>Flag</th><th>Human?</th><th>Exec?</th><th>Action</th><th class="dnc-col" title="Do Not Contact">DNC</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function setAction(key, selectEl) {
+  const action = selectEl.value;
+  if (!contactActions[key]) contactActions[key] = { action: 'none', date: '' };
+  contactActions[key].action = action;
+  // Update select styling
+  selectEl.className = 'action-select' + (action === 'emailed' ? ' action-emailed' : action === 'texted' ? ' action-texted' : action === 'called' ? ' action-called' : '');
+  // Show/hide date picker
+  const cell = selectEl.closest('.action-cell');
+  let datePicker = cell.querySelector('.action-date');
+  if (action !== 'none') {
+    if (!datePicker) {
+      datePicker = document.createElement('input');
+      datePicker.type = 'date';
+      datePicker.className = 'action-date';
+      const today = new Date().toISOString().split('T')[0];
+      datePicker.value = contactActions[key].date || today;
+      if (!contactActions[key].date) contactActions[key].date = today;
+      datePicker.onchange = (e) => setActionDate(key, e.target.value);
+      cell.appendChild(datePicker);
+    }
+  } else {
+    if (datePicker) datePicker.remove();
+    contactActions[key].date = '';
+  }
+  persistAction(key);
+  updateStats();
+}
+
+function setActionDate(key, date) {
+  if (!contactActions[key]) contactActions[key] = { action: 'none', date: '' };
+  contactActions[key].date = date;
+  persistAction(key);
+}
+
+function toggleDnc(cb) {
+  const key = cb.dataset.key;
+  const accountNumber = cb.dataset.account;
+  const email = cb.dataset.email;
+  const isDnc = cb.checked;
+  if (isDnc) {
+    doNotContact.add(key);
+    selectedEmails.delete(key);
+  } else {
+    doNotContact.delete(key);
+  }
+  const row = cb.closest('tr');
+  if (row) {
+    row.classList.toggle('row-dnc', isDnc);
+    row.classList.toggle('row-selected', !isDnc && selectedEmails.has(key));
+    const emailCb = row.querySelector('.email-checkbox');
+    if (emailCb) emailCb.checked = !isDnc && selectedEmails.has(key);
+  }
+  apiFetch('/api/save-dnc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ account_number: accountNumber, email, do_not_contact: isDnc }),
+  });
+  updateBulkBar();
+}
+
+function persistAction(key) {
+  const [accountNumber, email] = key.split(/_(.+)/);
+  const a = contactActions[key] || { action: 'none', date: '' };
+  apiFetch('/api/save-action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ account_number: accountNumber, email, action: a.action, action_date: a.date }),
+  });
+}
+
+function markAsEmailed(key) {
+  const today = new Date().toISOString().split('T')[0];
+  contactActions[key] = { action: 'emailed', date: today };
+  const cell = document.querySelector(`[data-row-action="${key}"]`);
+  if (!cell) return;
+  const sel = cell.querySelector('.action-select');
+  if (sel) {
+    sel.value = 'emailed';
+    sel.className = 'action-select action-emailed';
+  }
+  let datePicker = cell.querySelector('.action-date');
+  if (!datePicker) {
+    datePicker = document.createElement('input');
+    datePicker.type = 'date';
+    datePicker.className = 'action-date';
+    datePicker.onchange = (e) => setActionDate(key, e.target.value);
+    cell.appendChild(datePicker);
+  }
+  datePicker.value = today;
+  persistAction(key);
+  updateStats();
+}
+
+
+async function sendAllForAccount(accountNumber) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+
+  const contacts = (acc.contacts || []).filter(c => {
+    const key = `${accountNumber}_${c.email}`;
+    const action = (contactActions[key] || {}).action || 'none';
+    return c.email && c.email !== 'Not found' &&
+      c.flag === 'GREEN' &&
+      !doNotContact.has(key) &&
+      emailStates[key] !== 'sent' &&
+      action === 'none';
+  });
+  if (!contacts.length) return;
+
+  const btn = document.getElementById(`send-all-btn-${accountNumber}`);
+  const statusEl = document.getElementById(`send-all-status-${accountNumber}`);
+  btn.disabled = true;
+  let sent = 0, failed = 0;
+
+  for (const c of contacts) {
+    const key = `${accountNumber}_${c.email}`;
+    statusEl.textContent = `Sending ${sent + failed + 1}/${contacts.length}…`;
+    try {
+      const resp = await apiFetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: c.email, subject: c.subject || '', body: c.body || '' }),
+      });
+      if (resp.ok) {
+        emailStates[key] = 'sent';
+        markAsEmailed(key);
+        sent++;
+      } else {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+  }
+
+  btn.disabled = false;
+  statusEl.textContent = failed ? `${sent} sent, ${failed} failed` : `${sent} sent ✓`;
+  renderAccounts(allAccounts);
+  updateStats();
+}
+
+function applyHeaderAction(accountNumber, selectEl) {
+  const action = selectEl.value;
+  const colorClass = action === 'emailed' ? 'action-emailed' : action === 'texted' ? 'action-texted' : action === 'called' ? 'action-called' : '';
+  selectEl.className = 'action-select' + (colorClass ? ' ' + colorClass : '');
+
+  // Show/hide the header date picker
+  const headerDate = document.getElementById(`header-date-${accountNumber}`);
+  if (headerDate) {
+    if (action !== 'none') {
+      headerDate.style.display = '';
+      if (!headerDate.value) headerDate.value = new Date().toISOString().split('T')[0];
+    } else {
+      headerDate.style.display = 'none';
+    }
+  }
+
+  const date = headerDate ? headerDate.value : new Date().toISOString().split('T')[0];
+
+  // Apply to all row action cells for this account
+  document.querySelectorAll(`[data-row-action^="${accountNumber}_"]`).forEach(cell => {
+    const key = cell.dataset.rowAction;
+    const rowSelect = cell.querySelector('.action-select');
+    if (!rowSelect) return;
+    rowSelect.value = action;
+    setAction(key, rowSelect);
+    if (action !== 'none') {
+      const rowDate = cell.querySelector('.action-date');
+      if (rowDate) { rowDate.value = date; setActionDate(key, date); }
+    }
+  });
+  updateStats();
+}
+
+function applyHeaderDate(accountNumber, date) {
+  document.querySelectorAll(`[data-row-action^="${accountNumber}_"]`).forEach(cell => {
+    const key = cell.dataset.rowAction;
+    const rowDate = cell.querySelector('.action-date');
+    if (rowDate) { rowDate.value = date; setActionDate(key, date); }
+  });
+}
+
+function buildHypothesis(acc) {
+  if (!acc.hypothesis) return '<p class="loading-placeholder">Generating hypothesis...</p>';
+  return `<div class="hypothesis">${acc.hypothesis}</div>`;
+}
+
+function buildResearch(acc) {
+  if (!acc.research) return '<p class="loading-placeholder">Gathering research...</p>';
+  return `<div class="research-block">${acc.research}</div>`;
+}
+
+function toggleAccount(header) {
+  header.classList.toggle('open');
+  header.nextElementSibling.classList.toggle('open');
+}
+
+function toggleSection(header) {
+  header.classList.toggle('open');
+  header.nextElementSibling.classList.toggle('open');
+  const chevron = header.querySelector('.chevron');
+  chevron.innerHTML = header.classList.contains('open') ? '&#9660;' : '&#9654;';
+}
+
+function expandAll() {
+  document.querySelectorAll('.account-header').forEach(h => {
+    h.classList.add('open');
+    h.nextElementSibling.classList.add('open');
+  });
+}
+
+function collapseAll() {
+  document.querySelectorAll('.account-header').forEach(h => {
+    h.classList.remove('open');
+    h.nextElementSibling.classList.remove('open');
+  });
+}
+
+function escJs(s) {
+  if (!s) return '';
+  return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'');
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+const FLAG_DESCRIPTIONS = {
+  'Verified accurate': 'Facts in the email were independently confirmed from public sources.',
+  'Title / role unverifiable from public sources': 'Contact title could not be verified via LinkedIn, company website, or press. Email content is otherwise clean.',
+  'Duplicate or near-duplicate contact entry': 'Same contact appears more than once within the same account (usually with a role qualifier appended to the name).',
+  'Personal email domain (not corporate)': 'Email address uses a personal domain (e.g. gmail, personal site) rather than the company domain.',
+  'Internal CRM product-stack disclosure': 'Email names specific tools the account is confirmed to run from internal CRM data that cannot be sourced publicly.',
+  'Internal CRM disclosure + real-name signature leak': 'Email both leaks internal CRM data AND was originally signed with a real name instead of "[Your name]". Both issues have been corrected.',
+  'Internal CRM active deal / opportunity disclosure': 'Email references the status of a live deal — renewal value, stage, active scoping, or in-flight project — sourced from internal CRM.',
+  'Internal CRM account-architecture disclosure': 'Email reveals internal architecture details (e.g. number or structure of the account\'s systems) sourced from internal CRM.',
+  'Internal CRM seat / license-count disclosure': 'Email references specific license or seat counts. That is internal account intelligence, not public.',
+  'Internal CRM failed / stalled deal disclosure': 'Email references a deal that did not close or stalled. Comes from internal opportunity records.',
+  'Internal CRM usage / storage metric disclosure': 'Email cites an internal technical metric only visible inside internal systems.',
+  'Internal CRM product cancellation / non-renewal disclosure': 'Email discloses that a specific product was cancelled or not renewed at the account. Internal event, not public.',
+  'Real-name signature instead of [Your name]': 'Email was signed with a real name rather than the "[Your name]" placeholder. No internal CRM disclosure present — signature is the only issue.',
+  'Wrong / mismatched email domain': "Email address domain does not match the company's primary domain used by other contacts.",
+  'No email address': 'Email field is "Not found" — no deliverable address available for this contact.',
+  'Generic / shared inbox or role placeholder contact': 'Contact name is a job title placeholder (not a real person) and/or email is a shared functional inbox. Cannot send personalized executive outreach.',
+  'Duplicate contact (cross-account)': 'Same person (same email address) appears under two different account name variants in the dataset.',
+  'Former employee': 'Contact is no longer employed at the company listed — confirmed or strongly indicated from public sources.',
+  'Contact misattributed to wrong account': "Contact's email domain or stated title indicates they belong to a different company than the account they're listed under.",
+  'Internal project codename disclosure': 'Email references an internal project codename that would only be known from internal account notes.',
+  'Internal financial data disclosure (private company)': 'Email cites specific non-public financial figures for a private company.',
+};
+
+function showSimplePopover(e, label, flag, color, reason) {
+  e.stopPropagation();
+  const pop = document.getElementById('flag-popover');
+  document.getElementById('pop-flag-badge').textContent = `${label}: ${flag}`;
+  document.getElementById('pop-flag-badge').style.background = color;
+  const reasonsEl = document.getElementById('pop-reasons');
+  reasonsEl.innerHTML = '';
+  reasonsEl.style.display = 'none';
+  document.getElementById('pop-flag-reason').textContent = reason || 'No reason recorded.';
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = e.clientX + 10, y = e.clientY + 10;
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+  pop.classList.add('open');
+  requestAnimationFrame(() => {
+    const r = pop.getBoundingClientRect();
+    if (r.right > vw - 8) pop.style.left = Math.max(8, vw - r.width - 8) + 'px';
+    if (r.bottom > vh - 8) pop.style.top = Math.max(8, vh - r.height - 8) + 'px';
+  });
+}
+
+function showFlagReason(e, flag, color, categoriesJson, reason) {
+  e.stopPropagation();
+  const pop = document.getElementById('flag-popover');
+  document.getElementById('pop-flag-badge').textContent = flag;
+  document.getElementById('pop-flag-badge').style.background = color;
+
+  let categories = [];
+  try { categories = JSON.parse(categoriesJson); } catch(_) { if (categoriesJson) categories = [categoriesJson]; }
+
+  const reasonsEl = document.getElementById('pop-reasons');
+  if (categories.length > 0) {
+    reasonsEl.innerHTML = categories.map(cat => {
+      const desc = FLAG_DESCRIPTIONS[cat] || '';
+      return `<div class="pop-reason-item">` +
+        `<div class="pop-category">${escHtml(cat)}</div>` +
+        (desc ? `<div class="pop-description">${escHtml(desc)}</div>` : '') +
+        `</div>`;
+    }).join('');
+    reasonsEl.style.display = 'block';
+  } else {
+    reasonsEl.innerHTML = '';
+    reasonsEl.style.display = 'none';
+  }
+
+  document.getElementById('pop-flag-reason').textContent = reason || 'No reason recorded.';
+  // Position near the click, keeping inside viewport
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = e.clientX + 10, y = e.clientY + 10;
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+  pop.classList.add('open');
+  // Nudge back inside viewport after render
+  requestAnimationFrame(() => {
+    const r = pop.getBoundingClientRect();
+    if (r.right > vw - 8) pop.style.left = Math.max(8, vw - r.width - 8) + 'px';
+    if (r.bottom > vh - 8) pop.style.top = Math.max(8, vh - r.height - 8) + 'px';
+  });
+}
+
+function closeFlagPopover() {
+  document.getElementById('flag-popover').classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('flag-popover');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target)) {
+    closeFlagPopover();
+  }
+});
+
+function copyField(field) {
+  let text = '';
+  if (field === 'email') text = document.getElementById('modal-to-email').textContent;
+  else if (field === 'subject') text = document.getElementById('modal-subject').value;
+  else if (field === 'body') text = document.getElementById('modal-body-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function openModal(accountNumber, name, email, subject, body) {
+  currentEmailContext = { accountNumber, email };
+  document.getElementById('modal-to-name').textContent = name;
+  document.getElementById('modal-to-email').textContent = email;
+  document.getElementById('modal-subject').value = subject || '';
+  document.getElementById('modal-body-text').value = body || '';
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('queue-progress').classList.remove('active');
+  emailQueue = [];
+  queueIndex = 0;
+  currentEmailContext = null;
+}
+
+async function sendEmail() {
+  const to = document.getElementById('modal-to-email').textContent;
+  const subject = document.getElementById('modal-subject').value;
+  const body = document.getElementById('modal-body-text').value;
+  const statusEl = document.getElementById('modal-status');
+  const sendBtn = document.querySelector('.btn-primary');
+
+  if (currentEmailContext) {
+    const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
+    if (doNotContact.has(key)) {
+      statusEl.textContent = 'Blocked — this contact is marked Do Not Contact.';
+      return;
+    }
+  }
+
+  statusEl.textContent = 'Sending…';
+  sendBtn.disabled = true;
+
+  try {
+    const resp = await apiFetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, body }),
+    });
+    if (!resp.ok) {
+      const msg = await respError(resp);
+      statusEl.textContent = `Error: ${msg}`;
+      sendBtn.disabled = false;
+      return;
+    }
+    statusEl.textContent = 'Sent!';
+    if (currentEmailContext) {
+      const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
+      emailStates[key] = 'sent';
+      selectedEmails.delete(key);
+      markAsEmailed(key);
+    }
+    if (emailQueue.length > 0) {
+      queueIndex++;
+      setTimeout(() => openQueueItem(), 900);
+    } else {
+      setTimeout(() => { closeModal(); renderAccounts(allAccounts); updateStats(); }, 1200);
+    }
+  } catch (e) {
+    statusEl.textContent = `Network error: ${e.message}`;
+    sendBtn.disabled = false;
+  }
+}
+
+function skipEmail() {
+  if (currentEmailContext) {
+    const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
+    emailStates[key] = 'skipped';
+    selectedEmails.delete(key);
+  }
+  if (emailQueue.length > 0) {
+    queueIndex++;
+    openQueueItem();
+  } else {
+    closeModal();
+    renderAccounts(allAccounts);
+    updateStats();
+  }
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+async function refreshAccount(accountNumber) {
+  const btn = document.getElementById(`refresh-btn-${accountNumber}`);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  btn.textContent = '↻ Refreshing...';
+
+  try {
+    const resp = await apiFetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber }),
+    });
+    if (!resp.ok) {
+      throw new Error(await respError(resp));
+    }
+    const updated = await resp.json();
+    const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
+    if (idx !== -1) allAccounts[idx] = updated;
+
+    // Re-render just this account block
+    const block = document.querySelector(`.account-block[data-id="${accountNumber}"]`);
+    if (block) {
+      const wasOpen = block.querySelector('.account-body')?.classList.contains('open');
+      const newBlock = buildAccountBlock(updated);
+      if (wasOpen) {
+        newBlock.querySelector('.account-header').classList.add('open');
+        newBlock.querySelector('.account-body').classList.add('open');
+        // Re-open sections that were open
+        block.querySelectorAll('.section-header.open').forEach((sh, i) => {
+          const newHeaders = newBlock.querySelectorAll('.section-header');
+          if (newHeaders[i]) {
+            newHeaders[i].classList.add('open');
+            newHeaders[i].nextElementSibling.classList.add('open');
+          }
+        });
+      }
+      block.replaceWith(newBlock);
+    }
+    updateStats();
+  } catch (e) {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+    btn.textContent = '↻ Refresh';
+    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
+    const msg = isNotFound
+      ? 'Claude Code needs to be running to refresh. Open Terminal and run: claude'
+      : `Refresh failed: ${e.message}`;
+    const notice = document.createElement('div');
+    notice.style.cssText = 'margin-top:8px;padding:10px 14px;background:#1c1008;border:1px solid #9e6a03;border-radius:6px;font-size:12px;color:#d29922;line-height:1.5';
+    notice.textContent = msg;
+    const section = btn.closest('.section-block');
+    const content = section && section.querySelector('.section-content');
+    if (content) {
+      const existing = content.querySelector('.refresh-notice');
+      if (existing) existing.remove();
+      notice.classList.add('refresh-notice');
+      content.prepend(notice);
+      if (!content.classList.contains('open')) {
+        section.querySelector('.section-header').click();
+      }
+    }
+  }
+}
+
+function _reRenderAccount(accountNumber) {
+  const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
+  if (idx === -1) return;
+  const block = document.querySelector(`.account-block[data-id="${accountNumber}"]`);
+  if (!block) return;
+  const wasAccountOpen = block.querySelector('.account-header')?.classList.contains('open');
+  const openSections = Array.from(block.querySelectorAll('.section-header.open')).map((_, i) => i);
+  const newBlock = buildAccountBlock(allAccounts[idx]);
+  if (wasAccountOpen) {
+    newBlock.querySelector('.account-header').classList.add('open');
+    newBlock.querySelector('.account-body').classList.add('open');
+    const newHeaders = newBlock.querySelectorAll('.section-header');
+    openSections.forEach(i => {
+      if (newHeaders[i]) { newHeaders[i].classList.add('open'); newHeaders[i].nextElementSibling.classList.add('open'); }
+    });
+  }
+  block.replaceWith(newBlock);
+}
+
+function _showRefreshError(btn, resetLabel, msg) {
+  btn.disabled = false;
+  btn.classList.remove('spinning');
+  btn.textContent = resetLabel;
+  const notice = document.createElement('div');
+  notice.style.cssText = 'margin-top:8px;padding:10px 14px;background:#1c1008;border:1px solid #9e6a03;border-radius:6px;font-size:12px;color:#d29922;line-height:1.5';
+  notice.textContent = msg;
+  const section = btn.closest('.section-block');
+  const content = section && section.querySelector('.section-content');
+  if (content) {
+    const existing = content.querySelector('.refresh-notice');
+    if (existing) existing.remove();
+    notice.classList.add('refresh-notice');
+    content.prepend(notice);
+    if (!content.classList.contains('open')) section.querySelector('.section-header').click();
+  }
+}
+
+async function refreshResearch(accountNumber) {
+  const btn = document.getElementById(`research-refresh-btn-${accountNumber}`);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  btn.textContent = '↻ Refreshing...';
+
+  try {
+    const resp = await apiFetch('/api/refresh-research', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { job_id } = await resp.json();
+
+    const updated = await pollJob(job_id);
+    const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
+    if (idx !== -1) {
+      allAccounts[idx].research = updated.research;
+      allAccounts[idx].research_refreshed = updated.research_refreshed;
+    }
+    _reRenderAccount(accountNumber);
+  } catch (e) {
+    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
+    _showRefreshError(btn, '↻ Refresh',
+      isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Refresh failed: ${e.message}`);
+  }
+}
+
+async function refreshGtm(accountNumber) {
+  const btn = document.getElementById(`gtm-refresh-btn-${accountNumber}`);
+  if (!btn || btn.disabled) return;
+
+  // Stale research check
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  const researchDate = acc && acc.research_refreshed;
+  const today = new Date().toISOString().split('T')[0];
+  if (researchDate && researchDate < today) {
+    if (!confirm(`Research was last refreshed on ${fmtDateFull(researchDate)} — more than 24 hours ago.\n\nThe GTM hypothesis will be built from potentially stale data.\n\nClick OK to continue with existing research, or Cancel to refresh Research first.`)) return;
+  } else if (!researchDate) {
+    if (!confirm(`No research refresh date found for this account.\n\nClick OK to continue, or Cancel to refresh Research first.`)) return;
+  }
+
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  btn.textContent = '↻ Refreshing...';
+
+  try {
+    const resp = await apiFetch('/api/refresh-gtm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { job_id } = await resp.json();
+
+    const updated = await pollJob(job_id);
+    const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
+    if (idx !== -1) {
+      allAccounts[idx].hypothesis = updated.hypothesis;
+      allAccounts[idx].gtm_products = updated.gtm_products;
+      allAccounts[idx].hypothesis_refreshed = updated.hypothesis_refreshed;
+    }
+    _reRenderAccount(accountNumber);
+  } catch (e) {
+    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
+    _showRefreshError(btn, '↻ Refresh GTM',
+      isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Refresh failed: ${e.message}`);
+  }
+}
+
+// ── Selection helpers ──────────────────────────────────────────────────
+
+function toggleCheckbox(cb) {
+  const key = cb.dataset.key;
+  if (cb.checked) {
+    selectedEmails.add(key);
+    cb.closest('tr').classList.add('row-selected');
+  } else {
+    selectedEmails.delete(key);
+    cb.closest('tr').classList.remove('row-selected');
+  }
+  updateBulkBar();
+}
+
+function toggleTableAll(masterCb, tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  table.querySelectorAll('.email-checkbox').forEach(cb => {
+    cb.checked = masterCb.checked;
+    const key = cb.dataset.key;
+    if (masterCb.checked) {
+      selectedEmails.add(key);
+      cb.closest('tr').classList.add('row-selected');
+    } else {
+      selectedEmails.delete(key);
+      cb.closest('tr').classList.remove('row-selected');
+    }
+  });
+  updateBulkBar();
+}
+
+function selectByFlag(flag) {
+  allAccounts.forEach(acc => {
+    (acc.contacts || []).forEach(c => {
+      if (c.flag === flag && c.email && c.email !== 'Not found') {
+        selectedEmails.add(`${acc.account_number}_${c.email}`);
+      }
+    });
+  });
+  refreshCheckboxUI();
+  updateBulkBar();
+}
+
+function selectVisible() {
+  document.querySelectorAll('.email-checkbox').forEach(cb => {
+    cb.checked = true;
+    selectedEmails.add(cb.dataset.key);
+    cb.closest('tr').classList.add('row-selected');
+  });
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedEmails.clear();
+  document.querySelectorAll('.email-checkbox').forEach(cb => {
+    cb.checked = false;
+    cb.closest('tr').classList.remove('row-selected');
+  });
+  document.querySelectorAll('.select-all-table').forEach(cb => cb.checked = false);
+  updateBulkBar();
+}
+
+function refreshCheckboxUI() {
+  document.querySelectorAll('.email-checkbox').forEach(cb => {
+    const sel = selectedEmails.has(cb.dataset.key);
+    cb.checked = sel;
+    cb.closest('tr').classList.toggle('row-selected', sel);
+  });
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const count = selectedEmails.size;
+  document.getElementById('bulk-count').textContent = `${count} email${count === 1 ? '' : 's'} selected`;
+  bar.classList.toggle('active', count > 0);
+}
+
+// ── Bulk send queue ────────────────────────────────────────────────────
+
+function buildQueueItems() {
+  const items = [];
+  allAccounts.forEach(acc => {
+    (acc.contacts || []).forEach(c => {
+      const key = `${acc.account_number}_${c.email}`;
+      if (selectedEmails.has(key) && !doNotContact.has(key)) {
+        items.push({ key, accountNumber: acc.account_number, name: c.name, email: c.email, subject: c.subject || '', body: c.body || '' });
+      }
+    });
+  });
+  return items;
+}
+
+function startBulkSend() {
+  emailQueue = buildQueueItems();
+  if (!emailQueue.length) return;
+  queueIndex = 0;
+  openQueueItem();
+}
+
+function openQueueItem() {
+  if (queueIndex >= emailQueue.length) {
+    closeModal();
+    renderAccounts(allAccounts);
+    updateStats();
+    clearSelection();
+    return;
+  }
+  const item = emailQueue[queueIndex];
+  currentEmailContext = { accountNumber: item.accountNumber, email: item.email };
+  document.getElementById('modal-to-name').textContent = item.name;
+  document.getElementById('modal-to-email').textContent = item.email;
+  document.getElementById('modal-subject').value = item.subject;
+  document.getElementById('modal-body-text').value = item.body;
+  document.getElementById('modal-status').textContent = '';
+
+  // Show queue progress bar
+  const prog = document.getElementById('queue-progress');
+  const total = emailQueue.length;
+  prog.classList.toggle('active', total > 1);
+  document.getElementById('queue-label').textContent = `Email ${queueIndex + 1} of ${total}`;
+  document.getElementById('queue-bar-fill').style.width = `${(queueIndex / total) * 100}%`;
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function cancelQueue() {
+  emailQueue = [];
+  queueIndex = 0;
+  document.getElementById('queue-progress').classList.remove('active');
+  closeModal();
+}
+
+function toggleFindPanel(accountNumber) {
+  const panel = document.getElementById(`find-panel-${accountNumber}`);
+  if (!panel) return;
+  panel.classList.toggle('open');
+}
+
+function stepCount(accountNumber, delta) {
+  const input = document.getElementById(`find-count-${accountNumber}`);
+  if (!input) return;
+  const current = parseInt(input.value, 10) || 5;
+  input.value = Math.max(1, Math.min(20, current + delta));
+}
+
+function stepProductCount(accountNumber, idx, delta) {
+  const input = document.getElementById(`find-count-${accountNumber}-${idx}`);
+  if (!input) return;
+  const current = parseInt(input.value, 10) || 0;
+  input.value = Math.max(0, Math.min(20, current + delta));
+}
+
+async function findMoreContacts(accountNumber) {
+  const goBtn = document.getElementById(`find-go-btn-${accountNumber}`);
+  const triggerBtn = document.getElementById(`find-more-btn-${accountNumber}`);
+  const statusEl = document.getElementById(`find-more-status-${accountNumber}`);
+  if (!goBtn || goBtn.disabled) return;
+
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  const products = (acc && acc.gtm_products && acc.gtm_products.length)
+    ? acc.gtm_products
+    : ['']; // empty string = any area
+
+  // Build list of (focus_area, count) pairs where count > 0
+  const jobs = products.map((p, i) => {
+    const input = document.getElementById(`find-count-${accountNumber}-${i}`);
+    const count = Math.max(0, Math.min(20, parseInt(input?.value, 10) || 0));
+    return { focus_area: p, count };
+  }).filter(j => j.count > 0);
+
+  if (!jobs.length) {
+    if (statusEl) { statusEl.textContent = 'Set at least one count > 0'; statusEl.style.color = '#f85149'; }
+    return;
+  }
+
+  goBtn.disabled = true;
+  goBtn.textContent = 'Searching…';
+  if (triggerBtn) triggerBtn.disabled = true;
+  if (statusEl) statusEl.textContent = '';
+
+  let totalAdded = 0;
+  try {
+    for (let i = 0; i < jobs.length; i++) {
+      const { focus_area, count } = jobs[i];
+      const label = focus_area || 'any area';
+      if (statusEl) statusEl.textContent = `Finding ${count} contacts for ${label} (${i+1}/${jobs.length})…`;
+
+      const resp = await apiFetch('/api/next-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_number: accountNumber, count, focus_area }),
+      });
+      if (!resp.ok) throw new Error(await respError(resp));
+      const { job_id } = await resp.json();
+
+      const updated = await pollJob(job_id);
+      const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
+      if (idx !== -1) allAccounts[idx].contacts = updated.contacts;
+      totalAdded += updated.added || 0;
+    }
+
+    _reRenderAccount(accountNumber);
+    const newPanel = document.getElementById(`find-panel-${accountNumber}`);
+    if (newPanel) newPanel.classList.add('open');
+
+    const newStatusEl = document.getElementById(`find-more-status-${accountNumber}`);
+    if (newStatusEl) {
+      newStatusEl.textContent = totalAdded > 0 ? `${totalAdded} added` : 'No new contacts found';
+      newStatusEl.style.color = totalAdded > 0 ? '#3fb950' : '#8b949e';
+    }
+    updateStats();
+  } catch (e) {
+    if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Find'; }
+    if (triggerBtn) triggerBtn.disabled = false;
+    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
+    const msg = isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Failed: ${e.message}`;
+    if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#f85149'; }
+  }
+}
+
+// ── Report view ────────────────────────────────────────────────────────
+
+let currentView = 'accounts';
+let reportFilterStart = null;   // ISO date string or null
+let reportFilterEnd = null;     // ISO date string or null
+let reportActivePreset = null;  // 'week'|'2week'|'month'|'quarter'|null
+let reportFilterAccount = null; // account_number string or null
+
+function showView(view) {
+  currentView = view;
+  const accountList = document.getElementById('account-list');
+  const reportPanel = document.getElementById('report-panel');
+  const bulkBar = document.getElementById('bulk-bar');
+  const searchBar = document.querySelector('.search-bar');
+  if (view === 'report') {
+    accountList.style.display = 'none';
+    bulkBar.style.display = 'none';
+    searchBar.style.display = 'none';
+    reportPanel.classList.add('open');
+    buildReport();
+  } else {
+    accountList.style.display = '';
+    searchBar.style.display = '';
+    reportPanel.classList.remove('open');
+    if (selectedEmails.size > 0) bulkBar.style.display = '';
+  }
+}
+
+function setReportPreset(preset) {
+  reportActivePreset = preset;
+  const today = new Date();
+  const end = today.toISOString().split('T')[0];
+  let start;
+  if (preset === 'week') {
+    const d = new Date(today); d.setDate(d.getDate() - 7);
+    start = d.toISOString().split('T')[0];
+  } else if (preset === '2week') {
+    const d = new Date(today); d.setDate(d.getDate() - 14);
+    start = d.toISOString().split('T')[0];
+  } else if (preset === 'month') {
+    const d = new Date(today); d.setMonth(d.getMonth() - 1);
+    start = d.toISOString().split('T')[0];
+  } else if (preset === 'quarter') {
+    const d = new Date(today); d.setMonth(d.getMonth() - 3);
+    start = d.toISOString().split('T')[0];
+  } else {
+    start = null;
+  }
+  reportFilterStart = start;
+  reportFilterEnd = start ? end : null;
+  // Sync the custom date inputs
+  const si = document.getElementById('report-start-date');
+  const ei = document.getElementById('report-end-date');
+  if (si) si.value = start || '';
+  if (ei) ei.value = start ? end : '';
+  // Highlight active preset
+  document.querySelectorAll('.report-preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+  buildReportContent();
+}
+
+function onReportDateChange() {
+  reportActivePreset = null;
+  document.querySelectorAll('.report-preset-btn').forEach(b => b.classList.remove('active'));
+  reportFilterStart = document.getElementById('report-start-date').value || null;
+  reportFilterEnd   = document.getElementById('report-end-date').value   || null;
+  buildReportContent();
+}
+
+function buildReport() {
+  const panel = document.getElementById('report-panel');
+
+  // Build account options from accounts that have any activity
+  const activeAccounts = allAccounts.filter(acc =>
+    (acc.contacts || []).some(c => {
+      const key = `${acc.account_number}_${c.email}`;
+      const saved = contactActions[key];
+      const action = saved ? saved.action : (c.action || 'none');
+      return action && action !== 'none';
+    })
+  ).sort((a, b) => a.account_name.localeCompare(b.account_name));
+
+  const accountOptions = activeAccounts.map(acc =>
+    `<option value="${acc.account_number}" ${reportFilterAccount === acc.account_number ? 'selected' : ''}>${escHtml(acc.account_name)}</option>`
+  ).join('');
+
+  panel.innerHTML = `
+    <div class="report-filter-bar">
+      <button class="report-preset-btn" data-preset="week"    onclick="setReportPreset('week')">Past week</button>
+      <button class="report-preset-btn" data-preset="2week"   onclick="setReportPreset('2week')">Past 2 weeks</button>
+      <button class="report-preset-btn" data-preset="month"   onclick="setReportPreset('month')">Past month</button>
+      <button class="report-preset-btn" data-preset="quarter" onclick="setReportPreset('quarter')">Past quarter</button>
+      <button class="report-preset-btn" data-preset="all"     onclick="setReportPreset('all')">All time</button>
+      <div class="report-date-sep"></div>
+      <div class="report-date-range">
+        <span>From</span>
+        <input type="date" id="report-start-date" value="${reportFilterStart || ''}" onchange="onReportDateChange()">
+        <span>to</span>
+        <input type="date" id="report-end-date"   value="${reportFilterEnd   || ''}" onchange="onReportDateChange()">
+      </div>
+      <div class="report-date-sep"></div>
+      <div class="report-account-filter">
+        <span>Account</span>
+        <select class="report-account-select ${reportFilterAccount ? 'filtered' : ''}" id="report-account-select" onchange="onReportAccountChange()">
+          <option value="">All accounts</option>
+          ${accountOptions}
+        </select>
+      </div>
+    </div>
+    <div id="report-content"></div>
+  `;
+  if (reportActivePreset) {
+    document.querySelectorAll('.report-preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === reportActivePreset));
+  }
+  buildReportContent();
+}
+
+function onReportAccountChange() {
+  const sel = document.getElementById('report-account-select');
+  reportFilterAccount = sel.value || null;
+  sel.classList.toggle('filtered', !!reportFilterAccount);
+  buildReportContent();
+}
+
+function buildReportContent() {
+  const panel = document.getElementById('report-content');
+  if (!panel) return;
+
+  // Gather all actions across all accounts
+  // Structure: { date: { accountName: [ {name, title, email, action} ] } }
+  const byDate = {};
+  allAccounts.forEach(acc => {
+    // Apply account filter
+    if (reportFilterAccount && acc.account_number !== reportFilterAccount) return;
+
+    (acc.contacts || []).forEach(c => {
+      const key = `${acc.account_number}_${c.email}`;
+      const saved = contactActions[key];
+      const action = saved ? saved.action : (c.action || 'none');
+      const date   = saved ? saved.date   : (c.action_date || '');
+      if (!action || action === 'none') return;
+
+      // Apply date filter — skip 'Unknown date' rows when a filter is active
+      if (reportFilterStart || reportFilterEnd) {
+        if (!date) return; // unknown date: exclude when filtering
+        if (reportFilterStart && date < reportFilterStart) return;
+        if (reportFilterEnd   && date > reportFilterEnd)   return;
+      }
+
+      const dateKey = date || 'Unknown date';
+      if (!byDate[dateKey]) byDate[dateKey] = {};
+      if (!byDate[dateKey][acc.account_name]) byDate[dateKey][acc.account_name] = [];
+      byDate[dateKey][acc.account_name].push({ name: c.name, title: c.title, email: c.email, action, date: dateKey });
+    });
+  });
+
+  const dates = Object.keys(byDate).sort((a, b) => {
+    if (a === 'Unknown date') return 1;
+    if (b === 'Unknown date') return -1;
+    return b.localeCompare(a); // newest first
+  });
+
+  if (!dates.length) {
+    const rangeMsg = (reportFilterStart || reportFilterEnd)
+      ? ` in the selected date range (${reportFilterStart || '…'} → ${reportFilterEnd || '…'})`
+      : '';
+    panel.innerHTML = `<p class="report-empty">No prospecting activity recorded${rangeMsg}.</p>`;
+    return;
+  }
+
+  // Summary totals
+  let totalEmailed = 0, totalTexted = 0, totalCalled = 0, totalContacts = 0, totalAccounts = new Set();
+  dates.forEach(d => {
+    Object.entries(byDate[d]).forEach(([accName, rows]) => {
+      totalAccounts.add(accName);
+      rows.forEach(r => {
+        totalContacts++;
+        if (r.action === 'emailed') totalEmailed++;
+        else if (r.action === 'texted') totalTexted++;
+        else if (r.action === 'called') totalCalled++;
+      });
+    });
+  });
+
+  const summaryParts = [
+    `<strong>${totalAccounts.size}</strong> accounts`,
+    `<strong>${totalContacts}</strong> total touches`,
+    totalEmailed ? `<strong>${totalEmailed}</strong> emailed` : '',
+    totalTexted  ? `<strong>${totalTexted}</strong> texted`  : '',
+    totalCalled  ? `<strong>${totalCalled}</strong> called`  : '',
+  ].filter(Boolean);
+
+  let html = `<div class="report-summary-bar">${summaryParts.join(' &nbsp;·&nbsp; ')}</div>`;
+
+  dates.forEach(dateKey => {
+    const accounts = byDate[dateKey];
+    const displayDate = dateKey === 'Unknown date' ? 'Unknown date' : fmtDateFull(dateKey);
+    let dateHtml = `<div class="report-date-group">
+      <div class="report-date-heading">${displayDate}</div>`;
+
+    Object.keys(accounts).sort().forEach(accName => {
+      const rows = accounts[accName];
+      const rowsHtml = rows.map(r => `
+        <tr>
+          <td>${escHtml(r.name)}</td>
+          <td style="color:#8b949e">${escHtml(r.title)}</td>
+          <td style="color:#8b949e">${escHtml(r.email)}</td>
+          <td><span class="act-badge act-${r.action}">${r.action}</span>${r.date && r.date !== 'Unknown date' ? `<span style="color:#8b949e;font-size:11px;margin-left:6px">${fmtDateFull(r.date)}</span>` : ''}</td>
+        </tr>`).join('');
+      dateHtml += `<div class="report-account-group">
+        <div class="report-account-name">${escHtml(accName)}</div>
+        <table class="report-table">
+          <thead><tr><th>Contact</th><th>Title</th><th>Email</th><th>Activity</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+    });
+
+    dateHtml += '</div>';
+    html += dateHtml;
+  });
+
+  panel.innerHTML = html;
+}
+
+function fmtDateFull(iso) {
+  if (!iso) return '';
+  const parts = iso.split('-');
+  if (parts.length < 3) return iso;
+  const [y, m, d] = parts;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${months[+m - 1]} ${+d}, ${y}`;
+}
+
+// ─── Config bootstrap ──────────────────────────────────────────────────────
+let currentConfig = null;
+let pendingUploadCsv = null;
+
+async function bootstrap() {
+  try {
+    const resp = await apiFetch('/api/config');
+    if (!resp.ok) throw new Error('config fetch failed');
+    const data = await resp.json();
+    currentConfig = data.config || {};
+    updateBrand(currentConfig);
+    if (!data.complete) {
+      openSetup(true);  // force first-run wizard
+    }
+  } catch (e) {
+    console.error('bootstrap failed:', e);
+  }
+  init();
+}
+
+function updateBrand(cfg) {
+  const brand = (cfg && cfg.brand && cfg.brand.product_name) || 'OutboundRun';
+  document.getElementById('brand-title').textContent = brand;
+  document.getElementById('page-title').textContent = brand;
+}
+
+// ─── Setup / Settings modal ────────────────────────────────────────────────
+function openSetup(firstRun) {
+  const cfg = currentConfig || {};
+  const u = cfg.user || {};
+  const c = cfg.company || {};
+  const icp = cfg.icp || {};
+  const crm = cfg.crm || {};
+  const email = cfg.email || {};
+
+  document.getElementById('setup-title').textContent = firstRun ? 'Welcome — set up your workspace' : 'Settings';
+  document.getElementById('setup-lead').textContent = firstRun
+    ? 'A quick one-time setup so outreach reflects you and your company. Everything is stored locally in config.json.'
+    : 'Update your identity, company, products, ICP, or CRM configuration.';
+
+  document.getElementById('cfg-user-name').value    = u.full_name || '';
+  document.getElementById('cfg-user-role').value    = u.role_title || '';
+  document.getElementById('cfg-user-email').value   = u.email || '';
+  document.getElementById('cfg-user-phone').value   = u.phone || '';
+  document.getElementById('cfg-user-address').value = (u.address_lines || []).join('\n');
+  document.getElementById('cfg-user-sig').value     = u.signature_override || '';
+
+  document.getElementById('cfg-company-name').value = c.name || '';
+  document.getElementById('cfg-company-vp').value   = c.value_prop || '';
+
+  renderProductRows(c.products || []);
+
+  document.getElementById('cfg-icp-industry').value    = icp.industry || '';
+  document.getElementById('cfg-icp-descriptor').value  = icp.industry_descriptor || '';
+
+  renderPersonaRows(cfg.personas || []);
+  document.getElementById('cfg-credible-sources').value = (cfg.credible_external_sources || []).join('\n');
+  document.getElementById('cfg-internal-sources').value = (cfg.internal_sources || []).join('\n');
+  document.getElementById('cfg-contact-discovery').value = (cfg.contact_discovery_sources || []).join('\n');
+
+  document.getElementById('cfg-crm-type').value  = crm.type || 'none';
+  document.getElementById('cfg-crm-roles').value = (crm.team_roles || []).join('\n');
+
+  document.getElementById('cfg-email-sender').value = email.sender || 'clipboard';
+  document.getElementById('cfg-email-cta').value    = email.cta_length_minutes || 20;
+
+  setSetupStatus('', '');
+  document.getElementById('setup-overlay').classList.add('open');
+}
+
+function closeSetup() {
+  document.getElementById('setup-overlay').classList.remove('open');
+}
+
+function renderProductRows(products) {
+  const host = document.getElementById('cfg-products');
+  host.innerHTML = '';
+  const rows = products.length ? products : [{ name: '', short_desc: '' }];
+  rows.forEach(p => host.appendChild(buildProductRow(p.name || '', p.short_desc || '')));
+}
+
+function buildProductRow(name, desc) {
+  const row = document.createElement('div');
+  row.className = 'setup-product-row';
+  row.innerHTML = `
+    <input type="text" class="prod-name" placeholder="Product name" value="${escHtml(name)}">
+    <input type="text" class="prod-desc" placeholder="Short description (optional)" value="${escHtml(desc)}">
+    <button type="button" onclick="this.parentElement.remove()" title="Remove product">✕</button>
+  `;
+  return row;
+}
+
+function addProductRow() {
+  document.getElementById('cfg-products').appendChild(buildProductRow('', ''));
+}
+
+function renderPersonaRows(personas) {
+  const host = document.getElementById('cfg-personas');
+  host.innerHTML = '';
+  const rows = personas.length ? personas : [{ name: '', title: '', pain_points: '', cares_about: '' }];
+  rows.forEach(p => host.appendChild(buildPersonaRow(p)));
+}
+
+function buildPersonaRow(p) {
+  const row = document.createElement('div');
+  row.className = 'setup-persona-row';
+  row.innerHTML = `
+    <div class="persona-row-head">
+      <input type="text" class="pers-name" placeholder="Short name (e.g. CDO)" value="${escHtml(p.name || '')}">
+      <input type="text" class="pers-title" placeholder="Full title (e.g. Chief Data Officer)" value="${escHtml(p.title || '')}">
+      <button type="button" onclick="this.closest('.setup-persona-row').remove()" title="Remove persona">✕</button>
+    </div>
+    <textarea class="pers-pain" placeholder="Pain points (what they struggle with)" rows="2">${escHtml(p.pain_points || '')}</textarea>
+    <textarea class="pers-cares" placeholder="What they care about (their priorities, KPIs)" rows="2">${escHtml(p.cares_about || '')}</textarea>
+  `;
+  return row;
+}
+
+function addPersonaRow() {
+  document.getElementById('cfg-personas').appendChild(buildPersonaRow({}));
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function setSetupStatus(msg, kind) {
+  const el = document.getElementById('setup-status');
+  el.textContent = msg;
+  el.className = 'setup-status' + (kind ? ' ' + kind : '');
+}
+
+async function saveSetup() {
+  const products = Array.from(document.querySelectorAll('#cfg-products .setup-product-row'))
+    .map(r => ({
+      name: r.querySelector('.prod-name').value.trim(),
+      short_desc: r.querySelector('.prod-desc').value.trim(),
+    }))
+    .filter(p => p.name);
+
+  const cfg = {
+    ...(currentConfig || {}),
+    brand: (currentConfig && currentConfig.brand) || { product_name: 'OutboundRun', tagline: 'Every outbound run, prepared.' },
+    user: {
+      full_name: document.getElementById('cfg-user-name').value.trim(),
+      role_title: document.getElementById('cfg-user-role').value.trim() || 'Account Executive',
+      email: document.getElementById('cfg-user-email').value.trim(),
+      phone: document.getElementById('cfg-user-phone').value.trim(),
+      address_lines: document.getElementById('cfg-user-address').value.split('\n').map(s => s.trim()).filter(Boolean),
+      signature_override: document.getElementById('cfg-user-sig').value.trim(),
+    },
+    company: {
+      name: document.getElementById('cfg-company-name').value.trim(),
+      value_prop: document.getElementById('cfg-company-vp').value.trim(),
+      products,
+    },
+    icp: {
+      industry: document.getElementById('cfg-icp-industry').value.trim(),
+      industry_descriptor: document.getElementById('cfg-icp-descriptor').value.trim(),
+    },
+    personas: Array.from(document.querySelectorAll('#cfg-personas .setup-persona-row'))
+      .map(r => ({
+        name: r.querySelector('.pers-name').value.trim(),
+        title: r.querySelector('.pers-title').value.trim(),
+        pain_points: r.querySelector('.pers-pain').value.trim(),
+        cares_about: r.querySelector('.pers-cares').value.trim(),
+      }))
+      .filter(p => p.name || p.title),
+    credible_external_sources: document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+    internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+    contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
+    crm: {
+      type: document.getElementById('cfg-crm-type').value,
+      team_roles: document.getElementById('cfg-crm-roles').value.split('\n').map(s => s.trim()).filter(Boolean),
+    },
+    email: {
+      sender: document.getElementById('cfg-email-sender').value,
+      cta_length_minutes: parseInt(document.getElementById('cfg-email-cta').value, 10) || 20,
+    },
+  };
+
+  if (!cfg.user.full_name || !cfg.user.email || !cfg.company.name || !cfg.company.products.length) {
+    setSetupStatus('Full name, email, company, and at least one product are required.', 'err');
+    return;
+  }
+
+  setSetupStatus('Saving...', '');
+  try {
+    const resp = await apiFetch('/api/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: cfg }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    currentConfig = cfg;
+    updateBrand(cfg);
+    setSetupStatus('Saved.', 'ok');
+    setTimeout(closeSetup, 600);
+  } catch (e) {
+    setSetupStatus('Save failed: ' + e.message, 'err');
+  }
+}
+
+// ─── Upload Accounts modal ─────────────────────────────────────────────────
+function openUploadAccounts() {
+  pendingUploadCsv = null;
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('upload-preview').textContent = '';
+  document.getElementById('upload-submit-btn').disabled = true;
+  document.getElementById('upload-status').textContent = '';
+  document.getElementById('upload-overlay').classList.add('open');
+}
+
+function closeUploadAccounts() {
+  document.getElementById('upload-overlay').classList.remove('open');
+}
+
+function onUploadFile(evt) {
+  const file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingUploadCsv = e.target.result;
+    const preview = pendingUploadCsv.split('\n').slice(0, 6).join('\n');
+    const pv = document.getElementById('upload-preview');
+    pv.style.display = 'block';
+    pv.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB) — first 5 rows:\n\n${preview}`;
+    document.getElementById('upload-submit-btn').disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+// Drag-and-drop wiring
+(function wireUploadDrop() {
+  const drop = document.getElementById('upload-drop');
+  if (!drop) return;
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.remove('dragover');
+  }));
+  drop.addEventListener('drop', e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) {
+      const inp = document.getElementById('upload-file');
+      const dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files;
+      onUploadFile({ target: inp });
+    }
+  });
+})();
+
+async function doUploadAccounts() {
+  if (!pendingUploadCsv) return;
+  const mode = document.querySelector('input[name="upload-mode"]:checked').value;
+  const statusEl = document.getElementById('upload-status');
+  statusEl.textContent = 'Uploading...';
+  statusEl.className = 'setup-status';
+  try {
+    const resp = await apiFetch('/api/upload-accounts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv: pendingUploadCsv, mode }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const summary = await resp.json();
+    statusEl.textContent = `Added ${summary.added}, skipped ${summary.skipped_duplicates} duplicate(s). Total: ${summary.total}.`;
+    statusEl.className = 'setup-status ok';
+    setTimeout(() => { closeUploadAccounts(); init(); }, 900);
+  } catch (e) {
+    statusEl.textContent = 'Upload failed: ' + e.message;
+    statusEl.className = 'setup-status err';
+  }
+}
+
+// Wait for the auth-ready event before doing any /api/ calls.
+if (window.AUTH_TOKEN) {
+  bootstrap();
+} else {
+  document.addEventListener('auth-ready', bootstrap, { once: true });
+}
+</script>
+</body>
+</html>
