@@ -4,5 +4,8 @@
     "api/refresh-research.py":  { "maxDuration": 300 },
     "api/refresh-gtm.py":       { "maxDuration": 300 },
     "api/next-contacts.py":     { "maxDuration": 300 }
-  }
+  },
+  "redirects": [
+    { "source": "/", "destination": "/login/", "permanent": false }
+  ]
 }
