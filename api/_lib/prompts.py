@@ -312,44 +312,21 @@ def _contact_discovery_list(cfg: dict) -> str:
 
 
 # ============================================================================
-# CRM HELPERS (ported from app.py 402-437)
+# CRM HELPERS
+# Direct CRM sync is not currently supported. These stubs return the "no CRM"
+# branch so the prompts still render cleanly.
 # ============================================================================
 
 
 def _crm_team_task(cfg: dict, acc: dict) -> str:
-    crm = cfg.get('crm', {})
-    crm_type = crm.get('type', 'none')
-    crm_id = acc.get('crm_id') or acc.get('org62_id')
-    if crm_type == 'salesforce_org62' and crm_id:
-        roles = crm.get('team_roles') or []
-        role_filter = ', '.join(roles) if roles else '(any role)'
-        return (
-            f"Query Org62 AccountTeamMember for account {crm_id}:\n"
-            f"SELECT TeamMemberRole, User.Name, User.Email FROM AccountTeamMember WHERE AccountId = '{crm_id}'\n"
-            f"Return ONLY members whose TeamMemberRole is one of: {role_filter}\n"
-            f"For each matching member return: role, name, email"
-        )
     return 'No CRM integration configured. Return an empty team array.'
 
 
 def _crm_contacts_task(cfg: dict, acc: dict, limit: int = 50) -> str:
-    crm = cfg.get('crm', {})
-    crm_type = crm.get('type', 'none')
-    crm_id = acc.get('crm_id') or acc.get('org62_id')
-    if crm_type == 'salesforce_org62' and crm_id:
-        return (
-            f"Query Org62 Contacts for this account:\n"
-            f"SELECT FirstName, LastName, Title, Email, Phone, MobilePhone, LastActivityDate FROM Contact WHERE AccountId = '{crm_id}' ORDER BY LastActivityDate DESC NULLS LAST LIMIT {limit}\n\n"
-            f"Also query open/recent Opportunities:\n"
-            f"SELECT Name, StageName, Amount, CloseDate, Description FROM Opportunity WHERE AccountId = '{crm_id}' ORDER BY LastActivityDate DESC NULLS LAST LIMIT 15"
-        )
     return 'No CRM integration configured. Skip to web research.'
 
 
 def _crm_id_line(cfg: dict, acc: dict) -> str:
-    crm_id = acc.get('crm_id') or acc.get('org62_id')
-    if crm_id and cfg.get('crm', {}).get('type', 'none') != 'none':
-        return f"CRM ID: {crm_id}"
     return ''
 
 
