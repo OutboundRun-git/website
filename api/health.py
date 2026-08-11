@@ -53,10 +53,26 @@ class handler(BaseHandler):
 
         try:
             from anthropic import Anthropic
-            _ = Anthropic()
+            client = Anthropic()
             info['anthropic_client_created'] = True
         except Exception as e:
             info['anthropic_client_created'] = False
             info['anthropic_client_error'] = f'{type(e).__name__}: {e}'
+            self._ok(info)
+            return
+
+        # Real Anthropic API call with a tiny prompt to surface the exact error
+        try:
+            msg = client.messages.create(
+                model='claude-sonnet-4-6',
+                max_tokens=20,
+                messages=[{'role': 'user', 'content': 'reply with just OK'}],
+            )
+            info['anthropic_call'] = 'ok'
+            info['anthropic_reply'] = msg.content[0].text if msg.content else '(empty)'
+        except Exception as e:
+            info['anthropic_call'] = 'error'
+            info['anthropic_error'] = f'{type(e).__name__}: {e}'
+            info['anthropic_traceback'] = traceback.format_exc()
 
         self._ok(info)
