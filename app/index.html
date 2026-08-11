@@ -469,13 +469,32 @@
     </div>
 
     <div class="setup-section">
+      <h3>CRM integration</h3>
+      <div class="setup-row"><label>Your CRM</label>
+        <select id="cfg-crm-type">
+          <option value="none">None (web research only)</option>
+          <option value="hubspot" disabled>HubSpot (coming soon)</option>
+          <option value="pipedrive" disabled>Pipedrive (coming soon)</option>
+          <option value="attio" disabled>Attio (coming soon)</option>
+          <option value="zoho" disabled>Zoho (coming soon)</option>
+          <option value="copper" disabled>Copper (coming soon)</option>
+          <option value="freshsales" disabled>Freshsales (coming soon)</option>
+          <option value="monday" disabled>Monday CRM (coming soon)</option>
+        </select>
+      </div>
+      <p class="setup-hint">Direct CRM sync pulls team members, contact history, and opportunity data per account. Not live yet. Ask us about your CRM.</p>
+    </div>
+
+    <div class="setup-section">
       <h3>Email send behavior</h3>
       <div class="setup-row"><label>Sender</label>
         <select id="cfg-email-sender">
           <option value="clipboard">Copy to clipboard (send from your own mail client)</option>
+          <option value="gmail" disabled>Send from Gmail (coming soon)</option>
+          <option value="outlook" disabled>Send from Outlook (coming soon)</option>
         </select>
       </div>
-      <div class="setup-hint">Emails are copied to your clipboard so you can paste and send from whatever mail client you use. OutboundRun never sends email on your behalf.</div>
+      <div class="setup-hint">For now, emails are copied to your clipboard so you can paste and send from whatever mail client you use. Direct Gmail and Outlook sending are on the roadmap.</div>
       <div class="setup-row"><label>CTA length (minutes)</label><input type="number" id="cfg-email-cta" min="10" max="60" value="20"></div>
     </div>
 
