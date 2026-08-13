@@ -533,29 +533,15 @@ if ('IntersectionObserver' in window) {
 })();
 </script>
 
-<!-- Supabase auth detection: catch magic-link tokens landing on this page,
-     then swap the nav "Log in" link for "Open app ->" when signed in. -->
+<!-- Supabase auth detection: catch magic-link tokens landing on this page.
+     Nav shows "Log in" always; we do not swap to "Open app" when signed in. -->
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
   const SB_URL = 'https://bofukvujflsamvhzdrxh.supabase.co';
   const SB_KEY = 'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U';
-  const supabase = createClient(SB_URL, SB_KEY, {
+  createClient(SB_URL, SB_KEY, {
     auth: { persistSession: true, detectSessionInUrl: true, autoRefreshToken: true },
   });
-  function paintAuthNav(session) {
-    const link = document.getElementById('nav-auth-link');
-    if (!link) return;
-    if (session) {
-      link.textContent = 'Open app';
-      link.href = '/app/';
-    } else {
-      link.textContent = 'Log in';
-      link.href = '/login/';
-    }
-  }
-  const { data: { session } } = await supabase.auth.getSession();
-  paintAuthNav(session);
-  supabase.auth.onAuthStateChange((_event, sess) => paintAuthNav(sess));
 </script>
 
 </body>
