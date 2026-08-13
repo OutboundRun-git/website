@@ -4,3 +4,8 @@ node_modules/
 .env.local
 .vercel
 *.log
+
+# Python bytecode caches from local testing of /api/ endpoints
+__pycache__/
+*.pyc
+*.pyo
