@@ -1,0 +1,8 @@
+# Local test dependencies. Not shipped to Vercel (only requirements.txt is used
+# for serverless bundling).
+pytest>=8.0.0
+pytest-mock>=3.12.0
+# The runtime deps that our tests import (env.py, repo.py, etc.). Kept in sync
+# with requirements.txt so tests run without touching production bundles.
+anthropic>=0.40.0
+supabase>=2.7.0

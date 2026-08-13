@@ -9,3 +9,7 @@ node_modules/
 __pycache__/
 *.pyc
 *.pyo
+
+# Local test venv
+.venv/
+.pytest_cache/
