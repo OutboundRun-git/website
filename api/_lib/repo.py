@@ -89,6 +89,22 @@ def delete_all_accounts(user_id: str) -> None:
     get_db().table('accounts').delete().eq('user_id', user_id).execute()
 
 
+def delete_account_by_number(user_id: str, account_number: str) -> bool:
+    """Delete a single account by account_number. Returns True if a row was deleted."""
+    resp = (get_db().table('accounts')
+        .delete()
+        .eq('user_id', user_id)
+        .eq('data->>account_number', account_number)
+        .execute())
+    return bool(resp.data)
+
+
+def delete_user(user_id: str) -> None:
+    """Delete the user's auth row. ON DELETE CASCADE removes profiles, configs,
+    accounts, and jobs."""
+    get_db().auth.admin.delete_user(user_id)
+
+
 # ============================================================================
 # jobs (background job status)
 # ============================================================================

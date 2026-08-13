@@ -285,6 +285,7 @@
   <button onclick="selectVisible()">Select All Visible</button>
   <button onclick="clearSelection()">Clear Selection</button>
   <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
+  <button onclick="downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
   <button onclick="openSetup()" title="Configure your identity, company, products, and ICP">⚙ Settings</button>
   <span class="stats" id="stats-bar"></span>
 </div>
@@ -411,6 +412,51 @@
   .upload-drop:hover, .upload-drop.dragover { border-color: #58a6ff; color: #58a6ff; background: #0d1117; }
   .upload-preview { margin-top: 12px; font-size: 12px; color: #8b949e; max-height: 200px; overflow-y: auto; background: #0d1117; padding: 10px; border-radius: 6px; }
   .upload-mode { display: flex; gap: 12px; margin: 12px 0; font-size: 13px; color: #8b949e; }
+
+  /* Toast notification (bottom-right, auto-hides) */
+  .toast-stack { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; pointer-events: none; }
+  .toast { background: #21262d; border: 1px solid #30363d; border-left: 3px solid #3fb950; color: #e1e4e8; padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); animation: toastIn 0.25s ease-out; max-width: 360px; pointer-events: auto; }
+  .toast.err { border-left-color: #f85149; }
+  @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .toast.hiding { animation: toastOut 0.3s ease-in forwards; }
+  @keyframes toastOut { to { transform: translateY(20px); opacity: 0; } }
+
+  /* Empty state (no accounts uploaded yet) */
+  .empty-state { padding: 60px 24px; text-align: center; color: #8b949e; }
+  .empty-state h2 { font-size: 22px; color: #e1e4e8; margin-bottom: 12px; font-weight: 500; }
+  .empty-state p { max-width: 520px; margin: 0 auto 24px; line-height: 1.5; font-size: 14px; }
+  .empty-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .empty-actions .btn-primary { background: #238636; border: 1px solid #2ea043; color: white; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+  .empty-actions .btn-primary:hover { background: #2ea043; }
+  .empty-actions .btn-secondary { background: #21262d; border: 1px solid #30363d; color: #e1e4e8; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .empty-actions .btn-secondary:hover { border-color: #58a6ff; color: #58a6ff; }
+
+  /* Row-action buttons (edit + delete on account header and contact rows) */
+  .row-action { background: transparent; border: 1px solid transparent; color: #8b949e; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: color 0.15s, border-color 0.15s; }
+  .row-action:hover { color: #58a6ff; border-color: #58a6ff; }
+  .row-action.danger:hover { color: #f85149; border-color: #f85149; }
+  .account-header-actions { display: flex; gap: 4px; margin-left: 8px; }
+
+  /* Edit modal (reused for account + contact edit) */
+  .edit-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1500; align-items: center; justify-content: center; }
+  .edit-overlay.open { display: flex; }
+  .edit-modal { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; width: 90%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+  .edit-modal h3 { color: #e1e4e8; margin-bottom: 16px; font-size: 16px; }
+  .edit-row { margin-bottom: 12px; }
+  .edit-row label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 4px; }
+  .edit-row input, .edit-row textarea { width: 100%; padding: 8px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-family: inherit; font-size: 13px; }
+  .edit-row textarea { resize: vertical; min-height: 60px; }
+  .edit-row input:focus, .edit-row textarea:focus { border-color: #58a6ff; outline: none; }
+  .edit-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid #21262d; margin-top: 12px; }
+  .edit-footer .btn-primary { background: #238636; border: 1px solid #2ea043; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .edit-footer .btn-secondary { background: #21262d; border: 1px solid #30363d; color: #e1e4e8; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+  .edit-footer .btn-danger { background: #b3271e; border: 1px solid #f85149; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .edit-footer .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Danger zone in settings */
+  .danger-zone { border: 1px solid #b3271e; border-radius: 8px; padding: 16px; margin-top: 24px; }
+  .danger-zone h3 { color: #f85149; font-size: 14px; margin-bottom: 8px; }
+  .danger-zone p { color: #8b949e; font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
 </style>
 
 <div class="setup-overlay" id="setup-overlay">
@@ -504,6 +550,15 @@
       <span class="setup-status" id="setup-status"></span>
       <button class="btn-secondary" onclick="closeSetup()">Cancel</button>
       <button class="btn-primary" onclick="saveSetup()">Save</button>
+    </div>
+
+    <div class="danger-zone">
+      <h3>Danger zone</h3>
+      <p>Deleting your account permanently removes your config, accounts, contacts, and all generated research. This cannot be undone. Type <code>DELETE</code> to confirm.</p>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="delete-confirm-input" placeholder="Type DELETE" style="flex:1; padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-family:inherit; font-size:13px;" oninput="onDeleteConfirmType()">
+        <button id="delete-account-btn" class="btn-danger" onclick="deleteMyAccount()" disabled style="background:#b3271e; border:1px solid #f85149; color:white; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; opacity:0.4;">Delete my account</button>
+      </div>
     </div>
   </div>
 </div>
@@ -641,9 +696,23 @@ async function init() {
         }
       });
     });
-    renderAccounts(allAccounts);
-    document.getElementById('header-meta').textContent = `${allAccounts.length} accounts`;
-    document.getElementById('status-text').textContent = allAccounts.length > 0 ? 'All accounts loaded' : 'No accounts yet. Upload a CSV to get started.';
+    if (allAccounts.length === 0) {
+      document.getElementById('account-list').innerHTML = `
+        <div class="empty-state">
+          <h2>No accounts yet</h2>
+          <p>Upload a CSV of the accounts you want to research, or load a small sample list to see OutboundRun work end-to-end.</p>
+          <div class="empty-actions">
+            <button class="btn-primary" onclick="openUploadAccounts()">Upload accounts CSV</button>
+            <button class="btn-secondary" onclick="loadSampleData()">Try with sample data</button>
+          </div>
+        </div>`;
+      document.getElementById('header-meta').textContent = 'No accounts';
+      document.getElementById('status-text').textContent = 'No accounts yet. Upload a CSV to get started.';
+    } else {
+      renderAccounts(allAccounts);
+      document.getElementById('header-meta').textContent = `${allAccounts.length} accounts`;
+      document.getElementById('status-text').textContent = 'All accounts loaded';
+    }
     document.getElementById('progress-fill').style.width = '100%';
     document.getElementById('progress-label').textContent = `${allAccounts.length} / ${allAccounts.length}`;
     updateStats();
@@ -737,6 +806,10 @@ function buildAccountBlock(acc) {
         <span class="badge">${acc.account_number}</span>
         ${emailCount > 0 ? `<span class="badge blue">${emailCount} contacts</span>` : ''}
         ${hasBadge ? acc.gtm_products.map(p => `<span class="badge green">${p}</span>`).join('') : '<span class="badge loading">Pending</span>'}
+      </span>
+      <span class="account-header-actions" onclick="event.stopPropagation()">
+        <button class="row-action" title="Edit account" onclick="openEditAccount('${acc.account_number}')">✎</button>
+        <button class="row-action danger" title="Delete account" onclick="deleteAccountRow('${acc.account_number}', event)">🗑</button>
       </span>
     </div>
     <div class="account-body">
@@ -1020,6 +1093,10 @@ function buildContactsTable(acc) {
       ? `<td class="dnc-col" title="Do Not Contact"><input type="checkbox" class="dnc-checkbox" data-key="${key}" data-account="${acc.account_number}" data-email="${escJs(c.email)}" ${isDnc ? 'checked' : ''} onchange="toggleDnc(this)"></td>`
       : `<td class="dnc-col"></td>`;
     const rowClass = isDnc ? 'row-dnc' : (isSelected ? 'row-selected' : '');
+    const editCell = `<td style="white-space:nowrap">
+      <button class="row-action" title="Edit contact" onclick="openEditContact('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')">✎</button>
+      <button class="row-action danger" title="Delete contact" onclick="deleteContactRow('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')">🗑</button>
+    </td>`;
     return `<tr class="${rowClass}">
       ${checkboxCell}
       <td>${c.name}</td>
@@ -1031,13 +1108,14 @@ function buildContactsTable(acc) {
       <td style="text-align:center">${humanCell}</td>
       <td style="text-align:center">${execCell}</td>
       <td>${actionCell}</td>
+      ${editCell}
       ${dncCell}
     </tr>`;
   }).join('');
   return panel + `<table id="${tableId}">
     <thead><tr>
       <th class="check-col"><input type="checkbox" class="select-all-table" title="Select all in this table" onchange="toggleTableAll(this, '${tableId}')"></th>
-      <th>Name</th><th>Title</th><th>Email / Draft</th><th>Mobile</th><th>Hook</th><th>Flag</th><th>Human?</th><th>Exec?</th><th>Action</th><th class="dnc-col" title="Do Not Contact">DNC</th>
+      <th>Name</th><th>Title</th><th>Email / Draft</th><th>Mobile</th><th>Hook</th><th>Flag</th><th>Human?</th><th>Exec?</th><th>Action</th><th>Edit</th><th class="dnc-col" title="Do Not Contact">DNC</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
@@ -1502,19 +1580,25 @@ async function refreshAccount(accountNumber) {
     if (!resp.ok) {
       throw new Error(await respError(resp));
     }
-    const updated = await resp.json();
+    const respJson = await resp.json();
+    const result = respJson.result || respJson;
     const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
-    if (idx !== -1) allAccounts[idx] = updated;
+    if (idx !== -1) {
+      // Merge Claude output into the existing account. Do NOT replace the account
+      // (that would drop account_name, industry, etc.).
+      Object.assign(allAccounts[idx], result);
+      allAccounts[idx].last_refreshed = new Date().toISOString();
+    }
+    const merged = allAccounts[idx];
 
     // Re-render just this account block
     const block = document.querySelector(`.account-block[data-id="${accountNumber}"]`);
     if (block) {
       const wasOpen = block.querySelector('.account-body')?.classList.contains('open');
-      const newBlock = buildAccountBlock(updated);
+      const newBlock = buildAccountBlock(merged);
       if (wasOpen) {
         newBlock.querySelector('.account-header').classList.add('open');
         newBlock.querySelector('.account-body').classList.add('open');
-        // Re-open sections that were open
         block.querySelectorAll('.section-header.open').forEach((sh, i) => {
           const newHeaders = newBlock.querySelectorAll('.section-header');
           if (newHeaders[i]) {
@@ -1526,6 +1610,7 @@ async function refreshAccount(accountNumber) {
       block.replaceWith(newBlock);
     }
     updateStats();
+    showToast(`Research ready for ${merged.account_name}`);
   } catch (e) {
     btn.disabled = false;
     btn.classList.remove('spinning');
@@ -1608,13 +1693,13 @@ async function refreshResearch(accountNumber) {
     const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
     if (idx !== -1) {
       allAccounts[idx].research = updated.research;
-      allAccounts[idx].research_refreshed = updated.research_refreshed;
+      allAccounts[idx].research_refreshed = new Date().toISOString();
     }
     _reRenderAccount(accountNumber);
+    showToast(`Research updated for ${allAccounts[idx]?.account_name || 'account'}`);
   } catch (e) {
-    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
-    _showRefreshError(btn, '↻ Refresh',
-      isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Refresh failed: ${e.message}`);
+    showToast(`Research failed: ${e.message}`, 'err');
+    _showRefreshError(btn, '↻ Refresh', `Refresh failed: ${e.message}`);
   }
 }
 
@@ -1650,13 +1735,13 @@ async function refreshGtm(accountNumber) {
     if (idx !== -1) {
       allAccounts[idx].hypothesis = updated.hypothesis;
       allAccounts[idx].gtm_products = updated.gtm_products;
-      allAccounts[idx].hypothesis_refreshed = updated.hypothesis_refreshed;
+      allAccounts[idx].hypothesis_refreshed = new Date().toISOString();
     }
     _reRenderAccount(accountNumber);
+    showToast(`GTM hypothesis updated for ${allAccounts[idx]?.account_name || 'account'}`);
   } catch (e) {
-    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
-    _showRefreshError(btn, '↻ Refresh GTM',
-      isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Refresh failed: ${e.message}`);
+    showToast(`GTM refresh failed: ${e.message}`, 'err');
+    _showRefreshError(btn, '↻ Refresh GTM', `Refresh failed: ${e.message}`);
   }
 }
 
@@ -1857,8 +1942,13 @@ async function findMoreContacts(accountNumber) {
 
       const updated = await pollJob(job_id);
       const idx = allAccounts.findIndex(a => a.account_number === accountNumber);
-      if (idx !== -1) allAccounts[idx].contacts = updated.contacts;
-      totalAdded += updated.added || 0;
+      if (idx !== -1) {
+        // Append newly-found contacts to the existing list (do NOT replace).
+        const existing = allAccounts[idx].contacts || [];
+        const newlyFound = updated.contacts || [];
+        allAccounts[idx].contacts = existing.concat(newlyFound);
+      }
+      totalAdded += updated.added_count || (updated.contacts || []).length;
     }
 
     _reRenderAccount(accountNumber);
@@ -1871,6 +1961,8 @@ async function findMoreContacts(accountNumber) {
       newStatusEl.style.color = totalAdded > 0 ? '#3fb950' : '#8b949e';
     }
     updateStats();
+    if (totalAdded > 0) showToast(`Found ${totalAdded} new contacts`);
+    else showToast('No new contacts found', 'err');
   } catch (e) {
     if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Find'; }
     if (triggerBtn) triggerBtn.disabled = false;
@@ -2386,6 +2478,277 @@ async function doUploadAccounts() {
   }
 }
 
+// ============================================================================
+// TOAST NOTIFICATIONS
+// ============================================================================
+function showToast(message, kind) {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind === 'err' ? ' err' : '');
+  el.textContent = message;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('hiding');
+    setTimeout(() => el.remove(), 300);
+  }, 4000);
+  // Also flash the browser tab title (helpful when user is in another tab)
+  if (document.hidden) {
+    const orig = document.title;
+    document.title = '✓ ' + message.slice(0, 40);
+    const restore = () => { document.title = orig; document.removeEventListener('visibilitychange', restore); };
+    document.addEventListener('visibilitychange', restore);
+  }
+}
+
+// ============================================================================
+// CSV EXPORT (client-side)
+// ============================================================================
+function csvEscape(v) {
+  const s = v == null ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function downloadAccountsCsv() {
+  if (!allAccounts || allAccounts.length === 0) {
+    showToast('No accounts to export', 'err');
+    return;
+  }
+  const cols = [
+    'account_number','account_name','industry','website','notes',
+    'contact_name','contact_title','contact_email','contact_mobile',
+    'contact_flag','contact_human_flag','contact_exec_flag',
+    'contact_action','contact_action_date','contact_do_not_contact',
+    'contact_subject','contact_body','contact_hook',
+  ];
+  const lines = [cols.join(',')];
+  for (const acc of allAccounts) {
+    const contacts = (acc.contacts || []);
+    if (contacts.length === 0) {
+      lines.push([acc.account_number, acc.account_name, acc.industry || '', acc.website || '', acc.notes || '',
+        '','','','','','','','','','','',''].map(csvEscape).join(','));
+      continue;
+    }
+    for (const c of contacts) {
+      lines.push([
+        acc.account_number, acc.account_name, acc.industry || '', acc.website || '', acc.notes || '',
+        c.name || '', c.title || '', c.email || '', c.mobile || '',
+        c.flag || '', c.human_flag || '', c.exec_flag || '',
+        c.action || '', c.action_date || '', c.do_not_contact ? 'yes' : '',
+        c.subject || '', c.body || '', c.hook || '',
+      ].map(csvEscape).join(','));
+    }
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date().toISOString().slice(0,10);
+  a.download = `outboundrun-accounts-${ts}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${allAccounts.length} accounts as CSV`);
+}
+
+// ============================================================================
+// SAMPLE DATA (loaded when user clicks "Try with sample data" on empty state)
+// ============================================================================
+const SAMPLE_CSV = `account_name,industry,website,notes
+Snowflake,Data Cloud,snowflake.com,Enterprise data platform; strong SDR-driven outbound
+Databricks,Data / AI Platform,databricks.com,Competes with Snowflake; aggressive AE motion
+Datadog,Observability,datadoghq.com,500+ AEs across regions
+MongoDB,Database,mongodb.com,Developer-first; heavy technical outbound
+Ramp,Fintech,ramp.com,Fast-growing; well-covered in press
+`;
+
+async function loadSampleData() {
+  try {
+    const resp = await apiFetch('/api/upload-accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv: SAMPLE_CSV, mode: 'merge' }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    showToast('Sample accounts loaded');
+    init();
+  } catch (e) {
+    showToast('Could not load sample data: ' + (e.message || e), 'err');
+  }
+}
+
+// ============================================================================
+// ACCOUNT + CONTACT EDIT/DELETE
+// ============================================================================
+function _editState() {
+  return window._editState = window._editState || {};
+}
+
+function openEditAccount(accountNumber) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  _editState().kind = 'account';
+  _editState().accountNumber = accountNumber;
+  document.getElementById('edit-modal-title').textContent = 'Edit account';
+  document.getElementById('edit-modal-fields').innerHTML = `
+    <div class="edit-row"><label>Account name</label><input type="text" id="ef-account_name" value="${escapeAttr(acc.account_name || '')}"></div>
+    <div class="edit-row"><label>Industry</label><input type="text" id="ef-industry" value="${escapeAttr(acc.industry || '')}"></div>
+    <div class="edit-row"><label>Website</label><input type="text" id="ef-website" value="${escapeAttr(acc.website || '')}"></div>
+    <div class="edit-row"><label>Notes</label><textarea id="ef-notes">${escapeText(acc.notes || '')}</textarea></div>
+  `;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function openEditContact(accountNumber, contactEmail, contactName) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  const c = (acc.contacts || []).find(x => (contactEmail && (x.email || '').toLowerCase() === contactEmail.toLowerCase()) || (contactName && x.name === contactName));
+  if (!c) return;
+  _editState().kind = 'contact';
+  _editState().accountNumber = accountNumber;
+  _editState().origEmail = c.email || '';
+  _editState().origName = c.name || '';
+  document.getElementById('edit-modal-title').textContent = 'Edit contact';
+  document.getElementById('edit-modal-fields').innerHTML = `
+    <div class="edit-row"><label>Name</label><input type="text" id="ef-name" value="${escapeAttr(c.name || '')}"></div>
+    <div class="edit-row"><label>Title</label><input type="text" id="ef-title" value="${escapeAttr(c.title || '')}"></div>
+    <div class="edit-row"><label>Email</label><input type="email" id="ef-email" value="${escapeAttr(c.email || '')}"></div>
+    <div class="edit-row"><label>Mobile</label><input type="text" id="ef-mobile" value="${escapeAttr(c.mobile || '')}"></div>
+    <div class="edit-row"><label>Hook (context, why this person)</label><textarea id="ef-hook">${escapeText(c.hook || '')}</textarea></div>
+  `;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-overlay').classList.remove('open');
+}
+
+async function saveEdit() {
+  const state = _editState();
+  try {
+    if (state.kind === 'account') {
+      const updates = {
+        account_name: document.getElementById('ef-account_name').value,
+        industry: document.getElementById('ef-industry').value,
+        website: document.getElementById('ef-website').value,
+        notes: document.getElementById('ef-notes').value,
+      };
+      const resp = await apiFetch('/api/edit-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_number: state.accountNumber, updates }),
+      });
+      if (!resp.ok) throw new Error(await respError(resp));
+      showToast('Account updated');
+    } else if (state.kind === 'contact') {
+      const updates = {
+        name: document.getElementById('ef-name').value,
+        title: document.getElementById('ef-title').value,
+        email: document.getElementById('ef-email').value,
+        mobile: document.getElementById('ef-mobile').value,
+        hook: document.getElementById('ef-hook').value,
+      };
+      const resp = await apiFetch('/api/edit-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_number: state.accountNumber,
+          contact_email: state.origEmail,
+          contact_name: state.origName,
+          updates,
+        }),
+      });
+      if (!resp.ok) throw new Error(await respError(resp));
+      showToast('Contact updated');
+    }
+    closeEditModal();
+    init();
+  } catch (e) {
+    showToast('Save failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function deleteAccountRow(accountNumber, event) {
+  if (event) { event.stopPropagation(); }
+  if (!confirm(`Delete account ${accountNumber}? This removes all contacts and research.`)) return;
+  try {
+    const resp = await apiFetch('/api/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    showToast('Account deleted');
+    init();
+  } catch (e) {
+    showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function deleteContactRow(accountNumber, contactEmail, contactName) {
+  const who = contactName || contactEmail || 'contact';
+  if (!confirm(`Delete ${who}?`)) return;
+  try {
+    const resp = await apiFetch('/api/delete-contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_number: accountNumber,
+        contact_email: contactEmail || '',
+        contact_name: contactName || '',
+      }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    showToast('Contact deleted');
+    init();
+  } catch (e) {
+    showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+// ============================================================================
+// DELETE MY ACCOUNT
+// ============================================================================
+function onDeleteConfirmType() {
+  const input = document.getElementById('delete-confirm-input');
+  const btn = document.getElementById('delete-account-btn');
+  const enabled = input.value === 'DELETE';
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '1' : '0.4';
+  btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+}
+
+async function deleteMyAccount() {
+  const input = document.getElementById('delete-confirm-input');
+  if (input.value !== 'DELETE') return;
+  if (!confirm('This permanently deletes your account and all data. Continue?')) return;
+  try {
+    const resp = await apiFetch('/api/delete-my-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE' }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    if (window.SUPABASE) await window.SUPABASE.auth.signOut();
+    alert('Your account has been deleted. Goodbye.');
+    window.location.replace('/login/');
+  } catch (e) {
+    showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+// ============================================================================
+// HTML escape helpers (used by the edit modal to prevent injection)
+// ============================================================================
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeText(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // Wait for the auth-ready event before doing any /api/ calls.
 if (window.AUTH_TOKEN) {
   bootstrap();
@@ -2393,5 +2756,21 @@ if (window.AUTH_TOKEN) {
   document.addEventListener('auth-ready', bootstrap, { once: true });
 }
 </script>
+
+<!-- Toast notification stack -->
+<div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+<!-- Edit modal (reused for account + contact) -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-modal">
+    <h3 id="edit-modal-title">Edit</h3>
+    <div id="edit-modal-fields"></div>
+    <div class="edit-footer">
+      <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
