@@ -1,67 +1,89 @@
-"""Anthropic SDK wrapper. Replaces the local Claude Code CLI subprocess calls.
-
-The four prompt patterns in this app return either raw HTML (research) or JSON
-(everything else). Both helpers strip markdown fences that Claude sometimes wraps
-around outputs even when told not to.
+"""Anthropic SDK wrapper. Errors are logged server-side; only a generic message
+returns to the browser. Robust fence extraction handles multi-block content.
 """
 import json
-import os
-from anthropic import Anthropic
+import logging
+import re
+import threading
+
+from anthropic import Anthropic, APIError
+
+from _lib import env
 
 
-_client: Anthropic | None = None
+log = logging.getLogger(__name__)
+
 MODEL = 'claude-sonnet-4-6'
 MAX_TOKENS = 8192
+
+_client: Anthropic | None = None
+_lock = threading.Lock()
 
 
 def _get_client() -> Anthropic:
     global _client
     if _client is None:
-        _client = Anthropic()  # reads ANTHROPIC_API_KEY from env
+        with _lock:
+            if _client is None:
+                _client = Anthropic(api_key=env.ANTHROPIC_API_KEY)
     return _client
 
 
-def _strip_fences(text: str) -> str:
-    """Strip surrounding ```json ... ``` or ``` ... ``` fences if present."""
-    text = text.strip()
-    if not text.startswith('```'):
-        return text
-    parts = text.split('```', 2)
-    if len(parts) < 3:
-        return text
-    inner = parts[1]
-    for prefix in ('json\n', 'html\n', 'json', 'html'):
-        if inner.startswith(prefix):
-            inner = inner[len(prefix):]
-            break
-    return inner.lstrip('\n').rstrip()
+class ClaudeError(Exception):
+    """Safe-to-return-to-client error. The public message is the exception str."""
+    def __init__(self, public_message: str = 'AI service is temporarily unavailable'):
+        super().__init__(public_message)
 
 
-def run_claude_text(prompt: str) -> str:
-    """Send a prompt, return the raw text response."""
-    client = _get_client()
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        messages=[{'role': 'user', 'content': prompt}],
-    )
+def _call(prompt: str, *, max_tokens: int = MAX_TOKENS) -> str:
+    try:
+        msg = _get_client().messages.create(
+            model=MODEL,
+            max_tokens=max_tokens,
+            messages=[{'role': 'user', 'content': prompt}],
+        )
+    except APIError:
+        log.exception('anthropic.messages.create failed')
+        raise ClaudeError()
+    except Exception:
+        log.exception('anthropic call raised non-APIError')
+        raise ClaudeError()
+    if not msg.content:
+        raise ClaudeError('AI returned empty response')
     return msg.content[0].text
 
 
-def run_claude_json(prompt: str) -> dict:
-    """Send a prompt, expect JSON. Retry once with a JSON-only prefix if parse fails."""
-    raw = run_claude_text(prompt)
-    stripped = _strip_fences(raw)
-    try:
-        return json.loads(stripped)
-    except (json.JSONDecodeError, ValueError):
-        retry_prefix = 'Return ONLY valid JSON, no prose, no code fences.\n\n'
-        raw = run_claude_text(retry_prefix + prompt)
-        stripped = _strip_fences(raw)
-        return json.loads(stripped)
+_FENCE_RE = re.compile(r'```(?:json|html)?\s*\n?(.*?)```', re.DOTALL)
+
+
+def _extract_body(text: str) -> str:
+    text = (text or '').strip()
+    if not text:
+        return text
+    fences = _FENCE_RE.findall(text)
+    if fences:
+        return max(fences, key=len).strip()
+    return text
+
+
+def run_claude_text(prompt: str) -> str:
+    return _call(prompt)
 
 
 def run_claude_html(prompt: str) -> str:
-    """Send a prompt, expect raw HTML (research prompt). Strip fences if present."""
-    raw = run_claude_text(prompt)
-    return _strip_fences(raw)
+    return _extract_body(_call(prompt))
+
+
+def run_claude_json(prompt: str, *, max_retries: int = 1) -> dict:
+    attempt = 0
+    last_raw = ''
+    while attempt <= max_retries:
+        raw = _call(prompt if attempt == 0
+                    else 'Return ONLY valid JSON. No prose. No code fences.\n\n' + prompt)
+        last_raw = raw
+        try:
+            return json.loads(_extract_body(raw))
+        except (json.JSONDecodeError, ValueError):
+            attempt += 1
+    log.error('claude returned non-JSON after retries: %r', last_raw[:500])
+    raise ClaudeError('AI returned malformed JSON')

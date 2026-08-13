@@ -5,34 +5,35 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from _lib.http import BaseHandler, user_or_401
-from _lib.db import get_db
+from _lib.http import BaseHandler, HttpError, endpoint
+from _lib import repo
+
+
+MAX_PRODUCTS = 50
 
 
 class handler(BaseHandler):
-    @user_or_401
-    def do_POST(self, user_id):
+    @endpoint
+    def do_POST(self, user_id: str):
         body = self._body()
         products = body.get('products')
         if not isinstance(products, list):
-            return self._err(400, 'products must be an array of {name, short_desc}')
+            raise HttpError(400, 'products must be an array of {name, short_desc}')
+        if len(products) > MAX_PRODUCTS:
+            raise HttpError(413, f'products exceeds {MAX_PRODUCTS} items')
+
         cleaned = [
             {
-                'name': (p.get('name') or '').strip(),
-                'short_desc': (p.get('short_desc') or '').strip(),
+                'name': (p.get('name') or '').strip()[:200],
+                'short_desc': (p.get('short_desc') or '').strip()[:500],
             }
             for p in products
             if isinstance(p, dict) and (p.get('name') or '').strip()
         ]
         if not cleaned:
-            return self._err(400, 'At least one product with a name is required')
+            raise HttpError(400, 'At least one product with a name is required')
 
-        db = get_db()
-        row = db.table('configs').select('data').eq('user_id', user_id).maybe_single().execute()
-        cfg = (row.data or {}).get('data', {}) if row and row.data else {}
+        cfg = repo.get_config(user_id)
         cfg.setdefault('company', {})['products'] = cleaned
-        db.table('configs').upsert(
-            {'user_id': user_id, 'data': cfg},
-            on_conflict='user_id',
-        ).execute()
+        repo.save_config(user_id, cfg)
         self._ok({'saved': True, 'products': cleaned})

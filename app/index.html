@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title id="page-title">OutboundRun</title>
+<!-- XSS defense: sanitize Claude-generated HTML (research + hypothesis) before rendering -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; font-size: 14px; }
@@ -1223,14 +1225,33 @@ function applyHeaderDate(accountNumber, date) {
   });
 }
 
+// Sanitize Claude-generated HTML before rendering. Whitelist only the tags
+// our prompts ask Claude to emit. Any <script>, on* handlers, or javascript:
+// URLs get stripped.
+function sanitizeClaudeHtml(dirty) {
+  if (!dirty) return '';
+  if (typeof window.DOMPurify === 'undefined') {
+    // Fail closed if the sanitizer CDN did not load: render as text, not HTML.
+    const div = document.createElement('div');
+    div.textContent = String(dirty);
+    return div.innerHTML;
+  }
+  return window.DOMPurify.sanitize(String(dirty), {
+    ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','ul','ol','li','sup','sub','div','span','strong','em','b','i','br'],
+    ALLOWED_ATTR: ['class'],
+    FORBID_TAGS: ['script','style','iframe','object','embed','form','input','button','a','img','svg'],
+    FORBID_ATTR: ['style','onerror','onload','onclick','onmouseover','href','src','xlink:href'],
+  });
+}
+
 function buildHypothesis(acc) {
   if (!acc.hypothesis) return '<p class="loading-placeholder">Generating hypothesis...</p>';
-  return `<div class="hypothesis">${acc.hypothesis}</div>`;
+  return `<div class="hypothesis">${sanitizeClaudeHtml(acc.hypothesis)}</div>`;
 }
 
 function buildResearch(acc) {
   if (!acc.research) return '<p class="loading-placeholder">Gathering research...</p>';
-  return `<div class="research-block">${acc.research}</div>`;
+  return `<div class="research-block">${sanitizeClaudeHtml(acc.research)}</div>`;
 }
 
 function toggleAccount(header) {

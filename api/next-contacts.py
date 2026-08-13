@@ -1,78 +1,74 @@
 """POST /api/next-contacts
 Body: {account_number, count?, focus_area?}
-Finds N additional target contacts at the account, dedupes vs existing."""
+Finds N additional target contacts, dedupes vs existing (skipping empty emails)."""
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from _lib.http import BaseHandler, user_or_401
-from _lib.db import get_db
-from _lib.claude import run_claude_json
+from _lib.http import BaseHandler, HttpError, endpoint
+from _lib import repo
+from _lib.claude import run_claude_json, ClaudeError
 from _lib.prompts import build_next_contacts_prompt
 
 
-def _find_account(db, user_id: str, acc_num: str):
-    rows = db.table('accounts').select('id, data').eq('user_id', user_id).execute()
-    for r in (rows.data or []):
-        if (r['data'].get('account_number') or '').strip().upper() == acc_num.upper():
-            return r
-    return None
-
-
 class handler(BaseHandler):
-    @user_or_401
-    def do_POST(self, user_id):
+    @endpoint
+    def do_POST(self, user_id: str):
         body = self._body()
         acc_num = (body.get('account_number') or '').strip()
-        count = int(body.get('count') or 5)
+        try:
+            count = int(body.get('count') or 5)
+        except (TypeError, ValueError):
+            raise HttpError(400, 'count must be an integer')
         focus_area = (body.get('focus_area') or '').strip() or None
+
         if not acc_num:
-            return self._err(400, 'account_number is required')
+            raise HttpError(400, 'account_number is required')
         if count < 1 or count > 20:
-            return self._err(400, 'count must be between 1 and 20')
+            raise HttpError(400, 'count must be between 1 and 20')
 
-        db = get_db()
-        cfg_row = db.table('configs').select('data').eq('user_id', user_id).maybe_single().execute()
-        cfg = (cfg_row.data or {}).get('data', {}) if cfg_row and cfg_row.data else {}
-
-        target = _find_account(db, user_id, acc_num)
+        cfg = repo.get_config(user_id)
+        target = repo.get_account_by_number(user_id, acc_num)
         if not target:
-            return self._err(404, f'Account {acc_num} not found')
+            raise HttpError(404, f'Account {acc_num} not found')
 
-        job = db.table('jobs').insert({
-            'user_id': user_id, 'kind': 'next_contacts', 'status': 'running',
-        }).execute()
-        job_id = job.data[0]['id'] if job.data else None
+        job_id = repo.start_job(user_id, 'next_contacts')
 
         try:
             prompt = build_next_contacts_prompt(cfg, target['data'], count=count, focus_area=focus_area)
             result = run_claude_json(prompt)
-        except Exception as e:
-            if job_id:
-                db.table('jobs').update({'status': 'error', 'error': str(e)}).eq('id', job_id).execute()
-            return self._err(500, f'Claude failed: {e}')
+        except ClaudeError as e:
+            repo.fail_job(job_id, str(e))
+            raise HttpError(502, str(e))
 
-        new_contacts = result.get('contacts') or []
+        new_contacts = result.get('contacts') or [] if isinstance(result, dict) else []
         if not isinstance(new_contacts, list):
             new_contacts = []
 
-        # Dedupe against existing contacts by email (case-insensitive)
-        data = target['data']
-        existing = data.get('contacts') or []
-        existing_emails = {(c.get('email') or '').lower().strip() for c in existing}
-        added = []
+        # Dedupe by email (case-insensitive). Empty emails do NOT collide.
+        data = dict(target['data'])
+        existing = list(data.get('contacts') or [])
+        existing_emails = {
+            (c.get('email') or '').lower().strip()
+            for c in existing
+            if (c.get('email') or '').strip()
+        }
+        added: list[dict] = []
         for c in new_contacts:
+            if not isinstance(c, dict):
+                continue
             email = (c.get('email') or '').lower().strip()
             if email and email in existing_emails:
                 continue
-            existing_emails.add(email)
+            if email:
+                existing_emails.add(email)
             added.append(c)
 
         data['contacts'] = existing + added
-        db.table('accounts').update({'data': data}).eq('id', target['id']).execute()
+        if not repo.upsert_account_data(target['id'], user_id, data, target['updated_at']):
+            repo.fail_job(job_id, 'concurrent modification')
+            raise HttpError(409, 'Account was modified by another request. Please retry.')
 
         result_out = {'contacts': added, 'added_count': len(added)}
-        if job_id:
-            db.table('jobs').update({'status': 'done', 'result': result_out}).eq('id', job_id).execute()
-
+        repo.finish_job(job_id, result_out)
         self._ok({'job_id': job_id, 'status': 'done', 'result': result_out})
