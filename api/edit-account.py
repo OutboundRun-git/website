@@ -9,12 +9,14 @@ from _lib.http import BaseHandler, HttpError, endpoint
 from _lib import repo
 
 
-EDITABLE_FIELDS = {
+EDITABLE_STRING_FIELDS = {
     'account_name': 200,
     'industry': 200,
     'website': 400,
     'notes': 2000,
+    'status': 40,
 }
+ALLOWED_STATUSES = {'new', 'in_progress', 'opportunity', 'won', 'lost', 'cold', 'disqualified'}
 
 
 class handler(BaseHandler):
@@ -34,13 +36,16 @@ class handler(BaseHandler):
             raise HttpError(404, f'Account {acc_num} not found')
 
         data = dict(target['data'])
-        for field, max_len in EDITABLE_FIELDS.items():
+        for field, max_len in EDITABLE_STRING_FIELDS.items():
             if field in updates:
-                value = (updates[field] or '').strip()[:max_len]
-                # account_name must not be blank
+                value = ('' if updates[field] is None else str(updates[field])).strip()[:max_len]
                 if field == 'account_name' and not value:
                     raise HttpError(400, 'account_name cannot be blank')
+                if field == 'status' and value and value not in ALLOWED_STATUSES:
+                    raise HttpError(400, f'status must be one of: {", ".join(sorted(ALLOWED_STATUSES))}')
                 data[field] = value
+        if 'starred' in updates:
+            data['starred'] = bool(updates['starred'])
 
         if not repo.upsert_account_data(target['id'], user_id, data, target['updated_at']):
             raise HttpError(409, 'Account was modified by another request. Please retry.')

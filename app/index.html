@@ -271,8 +271,27 @@
   </div>
 </header>
 
-<div class="search-bar">
-  <input type="text" id="search" placeholder="Search accounts..." oninput="filterAccounts()">
+<div class="search-bar" style="display:flex; gap:10px; align-items:center;">
+  <input type="text" id="search" placeholder="Search accounts...   (press / to focus)" oninput="filterAccounts()" style="flex:1">
+  <select id="filter-status" onchange="filterAccounts()" title="Filter by pipeline status" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
+    <option value="all">All statuses</option>
+    <option value="starred">★ Starred only</option>
+    <option value="new">New</option>
+    <option value="in_progress">In progress</option>
+    <option value="opportunity">Opportunity</option>
+    <option value="won">Won</option>
+    <option value="lost">Lost</option>
+    <option value="cold">Cold</option>
+    <option value="disqualified">Disqualified</option>
+  </select>
+  <select id="sort-order" onchange="filterAccounts()" title="Sort accounts" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
+    <option value="starred_first">Starred first</option>
+    <option value="alphabetical">A → Z</option>
+    <option value="account_number">Account #</option>
+    <option value="recent">Recently updated</option>
+    <option value="contact_count">Most contacts</option>
+    <option value="status">By status</option>
+  </select>
 </div>
 
 <div class="controls">
@@ -287,6 +306,7 @@
   <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
   <button onclick="downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
   <button onclick="openSetup()" title="Configure your identity, company, products, and ICP">⚙ Settings</button>
+  <button onclick="openHelp()" title="Help + keyboard shortcuts (or press ?)">?</button>
   <span class="stats" id="stats-bar"></span>
 </div>
 
@@ -457,6 +477,36 @@
   .danger-zone { border: 1px solid #b3271e; border-radius: 8px; padding: 16px; margin-top: 24px; }
   .danger-zone h3 { color: #f85149; font-size: 14px; margin-bottom: 8px; }
   .danger-zone p { color: #8b949e; font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
+
+  /* Star toggle in account header */
+  .star-toggle { background: transparent; border: none; color: #4a4a4a; cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; transition: color 0.15s, transform 0.15s; }
+  .star-toggle:hover { color: #d4a72c; transform: scale(1.2); }
+  .star-toggle.starred { color: #d4a72c; }
+
+  /* Status select in account header */
+  .status-select { padding: 3px 8px; border-radius: 12px; border: 1px solid #30363d; font-size: 11px; font-weight: 500; cursor: pointer; }
+  .status-select.status-new         { background: #21262d; color: #8b949e; border-color: #30363d; }
+  .status-select.status-in_progress { background: #0d3a5e; color: #58a6ff; border-color: #1f6feb; }
+  .status-select.status-opportunity { background: #3d2e10; color: #d4a72c; border-color: #d4a72c; }
+  .status-select.status-won         { background: #0f3d1e; color: #3fb950; border-color: #2ea043; }
+  .status-select.status-lost        { background: #3d1010; color: #f85149; border-color: #b3271e; }
+  .status-select.status-cold        { background: #1a1a1a; color: #6a6a6a; border-color: #30363d; }
+  .status-select.status-disqualified{ background: #1a1a1a; color: #6a6a6a; border-color: #30363d; text-decoration: line-through; }
+  .status-select:hover { filter: brightness(1.2); }
+
+  /* Help modal */
+  .help-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1600; align-items: center; justify-content: center; }
+  .help-overlay.open { display: flex; }
+  .help-modal { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px 28px; width: 90%; max-width: 620px; max-height: 90vh; overflow-y: auto; }
+  .help-modal h2 { color: #e1e4e8; margin-bottom: 16px; font-size: 18px; }
+  .help-modal h3 { color: #58a6ff; margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .help-modal p, .help-modal li { color: #c9d1d9; line-height: 1.6; font-size: 13px; margin-bottom: 6px; }
+  .help-modal ul { margin-left: 18px; margin-bottom: 10px; }
+  .help-modal kbd { background: #21262d; border: 1px solid #30363d; border-radius: 4px; padding: 1px 6px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #e1e4e8; }
+  .help-modal code { background: #0d1117; padding: 1px 6px; border-radius: 4px; color: #79c0ff; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+  .help-footer { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #21262d; }
+  .help-footer .btn-primary { background: #21262d; border: 1px solid #30363d; color: #e1e4e8; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+  .help-footer .btn-primary:hover { border-color: #58a6ff; color: #58a6ff; }
 </style>
 
 <div class="setup-overlay" id="setup-overlay">
@@ -567,7 +617,7 @@
 <div class="setup-overlay" id="upload-overlay">
   <div class="setup-panel">
     <h2>Upload account list</h2>
-    <p class="setup-lead">Drop a CSV. Required column: <code>account_name</code> (or <code>name</code>/<code>company</code>). Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>.</p>
+    <p class="setup-lead">Drop a CSV. Required column: <code>account_name</code> (or <code>name</code>/<code>company</code>). Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>. <a href="#" onclick="downloadSampleCsv(event)" style="color:#58a6ff; margin-left:8px;">↓ Download sample CSV</a></p>
 
     <div class="upload-drop" id="upload-drop" onclick="document.getElementById('upload-file').click()">
       <div style="font-size:28px; margin-bottom:8px">⬆</div>
@@ -709,8 +759,8 @@ async function init() {
       document.getElementById('header-meta').textContent = 'No accounts';
       document.getElementById('status-text').textContent = 'No accounts yet. Upload a CSV to get started.';
     } else {
-      renderAccounts(allAccounts);
-      document.getElementById('header-meta').textContent = `${allAccounts.length} accounts`;
+      filterAccounts();  // renders + applies current filter/sort
+      updateHeaderMeta();
       document.getElementById('status-text').textContent = 'All accounts loaded';
     }
     document.getElementById('progress-fill').style.width = '100%';
@@ -744,10 +794,66 @@ function renderAccounts(accounts) {
   });
 }
 
+function updateHeaderMeta() {
+  const meta = document.getElementById('header-meta');
+  if (!meta) return;
+  const total = allAccounts.length;
+  const researched = allAccounts.filter(a => a.research && a.research.trim()).length;
+  const withDrafts = allAccounts.filter(a => (a.contacts || []).some(c => c.body && c.body.trim())).length;
+  const starred = allAccounts.filter(a => a.starred).length;
+  const parts = [`${total} account${total !== 1 ? 's' : ''}`];
+  if (researched) parts.push(`${researched} researched`);
+  if (withDrafts) parts.push(`${withDrafts} with drafts`);
+  if (starred) parts.push(`${starred} ★`);
+  meta.textContent = parts.join(' · ');
+}
+
+const STATUS_ORDER = { in_progress: 1, opportunity: 2, new: 3, won: 4, cold: 5, lost: 6, disqualified: 7 };
+
 function filterAccounts() {
-  const q = document.getElementById('search').value.toLowerCase();
-  const filtered = q ? allAccounts.filter(a => a.account_name.toLowerCase().includes(q)) : allAccounts;
+  const q = (document.getElementById('search')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('filter-status')?.value || 'all';
+  const sortOrder = document.getElementById('sort-order')?.value || 'starred_first';
+
+  let filtered = allAccounts.slice();
+
+  // Text search: name, industry, notes
+  if (q) {
+    filtered = filtered.filter(a =>
+      (a.account_name || '').toLowerCase().includes(q) ||
+      (a.industry || '').toLowerCase().includes(q) ||
+      (a.notes || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Status filter
+  if (statusFilter === 'starred') {
+    filtered = filtered.filter(a => a.starred);
+  } else if (statusFilter !== 'all') {
+    filtered = filtered.filter(a => (a.status || 'new') === statusFilter);
+  }
+
+  // Sort
+  const cmpAlpha = (a, b) => (a.account_name || '').localeCompare(b.account_name || '');
+  const cmpNumber = (a, b) => (a.account_number || '').localeCompare(b.account_number || '');
+  const cmpRecent = (a, b) => (b.updated_at || '').localeCompare(a.updated_at || '');
+  const cmpContacts = (a, b) => ((b.contacts || []).length) - ((a.contacts || []).length);
+  const cmpStatus = (a, b) => (STATUS_ORDER[a.status || 'new'] || 99) - (STATUS_ORDER[b.status || 'new'] || 99);
+  const sorters = {
+    alphabetical: cmpAlpha,
+    account_number: cmpNumber,
+    recent: cmpRecent,
+    contact_count: cmpContacts,
+    status: cmpStatus,
+    starred_first: cmpNumber,
+  };
+  filtered.sort(sorters[sortOrder] || cmpNumber);
+  if (sortOrder === 'starred_first') {
+    filtered.sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
+  }
+
   renderAccounts(filtered);
+  updateHeaderMeta();
 }
 
 function buildAccountOutreachBadge(acc) {
@@ -795,20 +901,32 @@ function buildAccountBlock(acc) {
   const hasBadge = acc.gtm_products && acc.gtm_products.length > 0;
   const outreachBadge = buildAccountOutreachBadge(acc);
 
+  const status = acc.status || 'new';
+  const starred = !!acc.starred;
   div.innerHTML = `
     <div class="account-header" onclick="toggleAccount(this)">
       <span class="chevron">&#9654;</span>
+      <button class="star-toggle ${starred ? 'starred' : ''}" title="Star / pin (starred float to top)" onclick="toggleStar('${acc.account_number}', event)">${starred ? '★' : '☆'}</button>
       <span class="name">${acc.account_name}</span>
       <span class="badges" style="flex:1">
         ${outreachBadge}
       </span>
       <span class="badges">
+        <select class="status-select status-${status}" onclick="event.stopPropagation()" onchange="setAccountStatus('${acc.account_number}', this.value)">
+          <option value="new" ${status==='new'?'selected':''}>New</option>
+          <option value="in_progress" ${status==='in_progress'?'selected':''}>In progress</option>
+          <option value="opportunity" ${status==='opportunity'?'selected':''}>Opportunity</option>
+          <option value="won" ${status==='won'?'selected':''}>Won</option>
+          <option value="lost" ${status==='lost'?'selected':''}>Lost</option>
+          <option value="cold" ${status==='cold'?'selected':''}>Cold</option>
+          <option value="disqualified" ${status==='disqualified'?'selected':''}>Disqualified</option>
+        </select>
         <span class="badge">${acc.account_number}</span>
         ${emailCount > 0 ? `<span class="badge blue">${emailCount} contacts</span>` : ''}
         ${hasBadge ? acc.gtm_products.map(p => `<span class="badge green">${p}</span>`).join('') : '<span class="badge loading">Pending</span>'}
       </span>
       <span class="account-header-actions" onclick="event.stopPropagation()">
-        <button class="row-action" title="Edit account" onclick="openEditAccount('${acc.account_number}')">✎</button>
+        <button class="row-action" title="Edit account (or press ✎)" onclick="openEditAccount('${acc.account_number}')">✎</button>
         <button class="row-action danger" title="Delete account" onclick="deleteAccountRow('${acc.account_number}', event)">🗑</button>
       </span>
     </div>
@@ -1567,6 +1685,10 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 async function refreshAccount(accountNumber) {
   const btn = document.getElementById(`refresh-btn-${accountNumber}`);
   if (!btn || btn.disabled) return;
+  if (!_startJob(accountNumber, 'refresh')) {
+    showToast('A refresh is already running for this account', 'err');
+    return;
+  }
   btn.disabled = true;
   btn.classList.add('spinning');
   btn.textContent = '↻ Refreshing...';
@@ -1611,7 +1733,9 @@ async function refreshAccount(accountNumber) {
     }
     updateStats();
     showToast(`Research ready for ${merged.account_name}`);
+    _endJob(accountNumber, 'refresh');
   } catch (e) {
+    _endJob(accountNumber, 'refresh');
     btn.disabled = false;
     btn.classList.remove('spinning');
     btn.textContent = '↻ Refresh';
@@ -1676,6 +1800,10 @@ function _showRefreshError(btn, resetLabel, msg) {
 async function refreshResearch(accountNumber) {
   const btn = document.getElementById(`research-refresh-btn-${accountNumber}`);
   if (!btn || btn.disabled) return;
+  if (!_startJob(accountNumber, 'research')) {
+    showToast('Research is already running for this account', 'err');
+    return;
+  }
   btn.disabled = true;
   btn.classList.add('spinning');
   btn.textContent = '↻ Refreshing...';
@@ -1697,7 +1825,9 @@ async function refreshResearch(accountNumber) {
     }
     _reRenderAccount(accountNumber);
     showToast(`Research updated for ${allAccounts[idx]?.account_name || 'account'}`);
+    _endJob(accountNumber, 'research');
   } catch (e) {
+    _endJob(accountNumber, 'research');
     showToast(`Research failed: ${e.message}`, 'err');
     _showRefreshError(btn, '↻ Refresh', `Refresh failed: ${e.message}`);
   }
@@ -1717,6 +1847,10 @@ async function refreshGtm(accountNumber) {
     if (!confirm(`No research refresh date found for this account.\n\nClick OK to continue, or Cancel to refresh Research first.`)) return;
   }
 
+  if (!_startJob(accountNumber, 'gtm')) {
+    showToast('GTM refresh is already running for this account', 'err');
+    return;
+  }
   btn.disabled = true;
   btn.classList.add('spinning');
   btn.textContent = '↻ Refreshing...';
@@ -1739,7 +1873,9 @@ async function refreshGtm(accountNumber) {
     }
     _reRenderAccount(accountNumber);
     showToast(`GTM hypothesis updated for ${allAccounts[idx]?.account_name || 'account'}`);
+    _endJob(accountNumber, 'gtm');
   } catch (e) {
+    _endJob(accountNumber, 'gtm');
     showToast(`GTM refresh failed: ${e.message}`, 'err');
     _showRefreshError(btn, '↻ Refresh GTM', `Refresh failed: ${e.message}`);
   }
@@ -1902,6 +2038,10 @@ async function findMoreContacts(accountNumber) {
   const triggerBtn = document.getElementById(`find-more-btn-${accountNumber}`);
   const statusEl = document.getElementById(`find-more-status-${accountNumber}`);
   if (!goBtn || goBtn.disabled) return;
+  if (!_startJob(accountNumber, 'next-contacts')) {
+    showToast('Contact discovery is already running for this account', 'err');
+    return;
+  }
 
   const acc = allAccounts.find(a => a.account_number === accountNumber);
   const products = (acc && acc.gtm_products && acc.gtm_products.length)
@@ -1963,12 +2103,14 @@ async function findMoreContacts(accountNumber) {
     updateStats();
     if (totalAdded > 0) showToast(`Found ${totalAdded} new contacts`);
     else showToast('No new contacts found', 'err');
+    _endJob(accountNumber, 'next-contacts');
   } catch (e) {
+    _endJob(accountNumber, 'next-contacts');
     if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Find'; }
     if (triggerBtn) triggerBtn.disabled = false;
-    const isNotFound = e.message && e.message.includes('CLAUDE_NOT_FOUND');
-    const msg = isNotFound ? 'Claude Code needs to be running. Open Terminal and run: claude' : `Failed: ${e.message}`;
+    const msg = `Failed: ${e.message}`;
     if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#f85149'; }
+    showToast(msg, 'err');
   }
 }
 
@@ -2749,6 +2891,130 @@ function escapeText(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ============================================================================
+// STAR / PIN + STATUS
+// ============================================================================
+async function toggleStar(accountNumber, event) {
+  if (event) event.stopPropagation();
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  const next = !acc.starred;
+  try {
+    const resp = await apiFetch('/api/edit-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber, updates: { starred: next } }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    acc.starred = next;
+    filterAccounts();
+    showToast(next ? `Starred ${acc.account_name}` : `Unstarred ${acc.account_name}`);
+  } catch (e) {
+    showToast('Could not update star: ' + (e.message || e), 'err');
+  }
+}
+
+async function setAccountStatus(accountNumber, newStatus) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  try {
+    const resp = await apiFetch('/api/edit-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber, updates: { status: newStatus } }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    acc.status = newStatus;
+    filterAccounts();
+    showToast(`Status updated for ${acc.account_name}`);
+  } catch (e) {
+    showToast('Could not update status: ' + (e.message || e), 'err');
+  }
+}
+
+// ============================================================================
+// IN-FLIGHT JOB TRACKING (prevents duplicate concurrent Claude calls)
+// ============================================================================
+const _inflight = new Set();
+
+function _jobKey(accountNumber, kind) {
+  return `${accountNumber}::${kind}`;
+}
+
+function _startJob(accountNumber, kind) {
+  const key = _jobKey(accountNumber, kind);
+  if (_inflight.has(key)) return false;  // already running
+  _inflight.add(key);
+  return true;
+}
+
+function _endJob(accountNumber, kind) {
+  _inflight.delete(_jobKey(accountNumber, kind));
+}
+
+function isRefreshing(accountNumber) {
+  for (const k of _inflight) {
+    if (k.startsWith(accountNumber + '::')) return true;
+  }
+  return false;
+}
+
+// ============================================================================
+// HELP MODAL
+// ============================================================================
+function openHelp() {
+  document.getElementById('help-overlay').classList.add('open');
+}
+
+function closeHelp() {
+  document.getElementById('help-overlay').classList.remove('open');
+}
+
+// ============================================================================
+// SAMPLE CSV DOWNLOAD (from upload modal)
+// ============================================================================
+function downloadSampleCsv(event) {
+  if (event) event.preventDefault();
+  const blob = new Blob([SAMPLE_CSV], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'outboundrun-sample.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// KEYBOARD SHORTCUTS
+// ============================================================================
+document.addEventListener('keydown', (e) => {
+  // Skip when user is typing in an input / textarea / contenteditable
+  const t = e.target;
+  const inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+
+  if (e.key === 'Escape') {
+    // Close whichever modal is open
+    ['modal-overlay','upload-overlay','setup-overlay','edit-overlay','help-overlay','flag-edit-pop']
+      .forEach(id => document.getElementById(id)?.classList.remove('open'));
+    return;
+  }
+
+  if (inField) return;
+
+  if (e.key === '/') {
+    e.preventDefault();
+    document.getElementById('search')?.focus();
+    return;
+  }
+  if (e.key === '?') {
+    e.preventDefault();
+    openHelp();
+    return;
+  }
+});
+
 // Wait for the auth-ready event before doing any /api/ calls.
 if (window.AUTH_TOKEN) {
   bootstrap();
@@ -2756,6 +3022,42 @@ if (window.AUTH_TOKEN) {
   document.addEventListener('auth-ready', bootstrap, { once: true });
 }
 </script>
+
+<!-- Help modal -->
+<div class="help-overlay" id="help-overlay" onclick="if(event.target===this) closeHelp()">
+  <div class="help-modal">
+    <h2>OutboundRun help</h2>
+
+    <h3>What each button does</h3>
+    <ul>
+      <li><code>↻ Refresh</code> — full pass on an account: team, contacts, research, GTM hypothesis, and per-persona emails. 30-90 seconds.</li>
+      <li><code>↻ Refresh Research</code> — re-fetches the research summary only (SEC filings, earnings, news). Cheaper and faster.</li>
+      <li><code>↻ Refresh GTM</code> — regenerates the value hypothesis from existing research (does not re-fetch web).</li>
+      <li><code>+ Find Contacts</code> — asks Claude to identify additional targets at the account, deduped against existing contacts.</li>
+      <li><code>Send Email</code> — copies the drafted email to your clipboard. OutboundRun never sends on your behalf.</li>
+    </ul>
+
+    <h3>Keyboard shortcuts</h3>
+    <ul>
+      <li><kbd>/</kbd> — focus the search bar</li>
+      <li><kbd>?</kbd> — open this help</li>
+      <li><kbd>Esc</kbd> — close any open modal</li>
+    </ul>
+
+    <h3>Account pipeline</h3>
+    <p>Each account has a status dropdown: New → In progress → Opportunity → Won (or Lost / Cold / Disqualified). Filter by status from the toolbar. Star accounts to keep them at the top.</p>
+
+    <h3>CSV upload format</h3>
+    <p>Required column: <code>account_name</code>. Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>. Sample file is one click away in the upload dialog.</p>
+
+    <h3>Export</h3>
+    <p><code>⬇ Export CSV</code> in the top nav downloads every account and every contact (with all flags, actions, drafts) as one CSV, ready to paste into your CRM.</p>
+
+    <div class="help-footer">
+      <button class="btn-primary" onclick="closeHelp()">Got it</button>
+    </div>
+  </div>
+</div>
 
 <!-- Toast notification stack -->
 <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
