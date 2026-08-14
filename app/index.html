@@ -2490,11 +2490,16 @@ function openSetup(firstRun) {
   document.getElementById('cfg-internal-sources').value = (cfg.internal_sources || []).join('\n');
   document.getElementById('cfg-contact-discovery').value = (cfg.contact_discovery_sources || []).join('\n');
 
-  document.getElementById('cfg-crm-type').value  = crm.type || 'none';
-  document.getElementById('cfg-crm-roles').value = (crm.team_roles || []).join('\n');
-
-  document.getElementById('cfg-email-sender').value = email.sender || 'clipboard';
-  document.getElementById('cfg-email-cta').value    = email.cta_length_minutes || 20;
+  // Only set fields that still exist in the DOM. Some were removed as the
+  // wizard evolved (crm-roles, email-sender dropdown replaced by Gmail Connect).
+  const setIfExists = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+  setIfExists('cfg-crm-type', crm.type || 'none');
+  setIfExists('cfg-crm-roles', (crm.team_roles || []).join('\n'));
+  setIfExists('cfg-email-sender', email.sender || 'clipboard');
+  setIfExists('cfg-email-cta', email.cta_length_minutes || 20);
 
   setSetupStatus('', '');
   document.getElementById('setup-overlay').classList.add('open');
@@ -2602,12 +2607,12 @@ async function saveSetup() {
     internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
     contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
     crm: {
-      type: document.getElementById('cfg-crm-type').value,
-      team_roles: document.getElementById('cfg-crm-roles').value.split('\n').map(s => s.trim()).filter(Boolean),
+      type: (document.getElementById('cfg-crm-type')?.value) || 'none',
+      team_roles: (document.getElementById('cfg-crm-roles')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
     },
     email: {
-      sender: document.getElementById('cfg-email-sender').value,
-      cta_length_minutes: parseInt(document.getElementById('cfg-email-cta').value, 10) || 20,
+      sender: (document.getElementById('cfg-email-sender')?.value) || 'clipboard',
+      cta_length_minutes: parseInt(document.getElementById('cfg-email-cta')?.value || '20', 10) || 20,
     },
   };
 
