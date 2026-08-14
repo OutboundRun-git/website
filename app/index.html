@@ -2016,6 +2016,18 @@ function cancelQueue() {
 function toggleFindPanel(accountNumber) {
   const panel = document.getElementById(`find-panel-${accountNumber}`);
   if (!panel) return;
+  // The panel lives inside the "Target Contacts" section body. If that section
+  // is collapsed, toggling the panel would be invisible. Force-open the section
+  // whenever we open the panel.
+  const section = panel.closest('.section-block');
+  if (section) {
+    const header = section.querySelector('.section-header');
+    const content = section.querySelector('.section-content');
+    if (header && content && !header.classList.contains('open')) {
+      header.classList.add('open');
+      content.classList.add('open');
+    }
+  }
   panel.classList.toggle('open');
 }
 
