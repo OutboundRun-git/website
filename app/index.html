@@ -1039,20 +1039,28 @@ function flagColor(f) {
   return f === 'RED' ? '#f85149' : f === 'YELLOW' ? '#e3b341' : f === 'GREEN' ? '#3fb950' : '#8b949e';
 }
 
+// Escape a JS-safe string so it can be safely embedded inside an HTML
+// double-quoted attribute. Prevents double quotes inside JSON payloads
+// (e.g. flag_categories) from prematurely terminating onclick="...".
+function escAttr(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 function buildFlagCell(key, type, displayFlag, origFlag, categoriesJson, reason, _unused, label) {
   const overrideKey = key + '_' + type;
   const isOverridden = !!flagOverrides[overrideKey];
   const comment = flagOverrideComments[overrideKey] || '';
   const color = flagColor(displayFlag);
 
-  if (!displayFlag) return `<span style="color:#484f58;font-style:italic;font-size:11px">—<button class="flag-edit-btn" title="Override flag" onclick="openFlagEdit(event,'${key}','${type}','${escJs(displayFlag || '')}')">✎</button></span>`;
+  if (!displayFlag) return `<span style="color:#484f58;font-style:italic;font-size:11px">—<button class="flag-edit-btn" title="Override flag" onclick="openFlagEdit(event,'${escAttr(key)}','${type}','${escAttr(escJs(displayFlag || ''))}')">✎</button></span>`;
 
   let whyHandler;
   if (type === 'flag' && categoriesJson) {
-    whyHandler = `showFlagReason(event,'${origFlag}','${flagColor(origFlag)}','${categoriesJson}','${reason}')`;
+    whyHandler = `showFlagReason(event,'${escAttr(origFlag)}','${escAttr(flagColor(origFlag))}','${escAttr(categoriesJson)}','${escAttr(reason)}')`;
   } else {
     const popLabel = type === 'human' ? 'Human?' : type === 'exec' ? 'Exec?' : label;
-    whyHandler = `showSimplePopover(event,'${popLabel}','${origFlag}','${flagColor(origFlag)}','${reason}')`;
+    whyHandler = `showSimplePopover(event,'${escAttr(popLabel)}','${escAttr(origFlag)}','${escAttr(flagColor(origFlag))}','${escAttr(reason)}')`;
   }
 
   const overrideDot = isOverridden
