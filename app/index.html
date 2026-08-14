@@ -312,7 +312,7 @@
 
 <div class="bulk-bar" id="bulk-bar">
   <span class="bulk-count" id="bulk-count">0 selected</span>
-  <button class="bulk-btn bulk-send" onclick="startBulkSend()">Send Selected Emails</button>
+  <button class="bulk-btn bulk-send" onclick="startBulkSend()">Open Selected in Mail</button>
   <button class="bulk-btn bulk-clear" onclick="clearSelection()">Clear Selection</button>
 </div>
 
@@ -384,7 +384,7 @@
       <span class="status-msg" id="modal-status"></span>
       <button class="btn btn-skip" onclick="skipEmail()">Skip</button>
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="sendEmail()">Send Email</button>
+      <button class="btn btn-primary" onclick="sendEmail()">Open in Mail</button>
     </div>
   </div>
 </div>
@@ -1170,7 +1170,7 @@ function buildContactsHeaderAction(acc) {
       <option value="called">Called</option>
     </select>
     <input type="date" class="action-date" id="header-date-${acc.account_number}" style="display:none;width:auto" onchange="applyHeaderDate('${acc.account_number}', this.value)">
-    <button class="send-all-btn" id="send-all-btn-${acc.account_number}" onclick="sendAllForAccount('${acc.account_number}')">Send All</button>
+    <button class="send-all-btn" id="send-all-btn-${acc.account_number}" onclick="sendAllForAccount('${acc.account_number}')">Open All in Mail</button>
     <button class="refresh-btn" id="find-more-btn-${acc.account_number}" onclick="toggleFindPanel('${acc.account_number}')">+ Find Contacts</button>
     <span id="send-all-status-${acc.account_number}" style="color:#8b949e;font-size:11px"></span>
   </span>`;
@@ -1385,38 +1385,24 @@ async function sendAllForAccount(accountNumber) {
       emailStates[key] !== 'sent' &&
       action === 'none';
   });
-  if (!contacts.length) return;
-
-  const btn = document.getElementById(`send-all-btn-${accountNumber}`);
-  const statusEl = document.getElementById(`send-all-status-${accountNumber}`);
-  btn.disabled = true;
-  let sent = 0, failed = 0;
-
-  for (const c of contacts) {
-    const key = `${accountNumber}_${c.email}`;
-    statusEl.textContent = `Sending ${sent + failed + 1}/${contacts.length}…`;
-    try {
-      const resp = await apiFetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: c.email, subject: c.subject || '', body: c.body || '' }),
-      });
-      if (resp.ok) {
-        emailStates[key] = 'sent';
-        markAsEmailed(key);
-        sent++;
-      } else {
-        failed++;
-      }
-    } catch {
-      failed++;
-    }
+  if (!contacts.length) {
+    showToast('No green contacts available to send', 'err');
+    return;
   }
 
-  btn.disabled = false;
-  statusEl.textContent = failed ? `${sent} sent, ${failed} failed` : `${sent} sent ✓`;
-  renderAccounts(allAccounts);
-  updateStats();
+  // Queue them into the review modal. User reviews each draft, clicks Open in
+  // Mail, sends from their real inbox, we auto-advance to the next.
+  emailQueue = contacts.map(c => ({
+    accountNumber,
+    name: c.name || '',
+    email: c.email,
+    subject: c.subject || '',
+    body: c.body || '',
+  }));
+  queueIndex = 0;
+  document.getElementById('queue-progress').classList.add('active');
+  openQueueItem();
+  return;
 }
 
 function applyHeaderAction(accountNumber, selectEl) {
@@ -1657,7 +1643,6 @@ async function sendEmail() {
   const subject = document.getElementById('modal-subject').value;
   const body = document.getElementById('modal-body-text').value;
   const statusEl = document.getElementById('modal-status');
-  const sendBtn = document.querySelector('.btn-primary');
 
   if (currentEmailContext) {
     const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
@@ -1667,37 +1652,33 @@ async function sendEmail() {
     }
   }
 
-  statusEl.textContent = 'Sending…';
-  sendBtn.disabled = true;
+  // Build a mailto: URL and open it in the user's default mail client
+  // (Gmail, Outlook, Apple Mail, etc.). The user still clicks Send in their
+  // real inbox, so it goes out from their account with their signature.
+  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-  try {
-    const resp = await apiFetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, body }),
-    });
-    if (!resp.ok) {
-      const msg = await respError(resp);
-      statusEl.textContent = `Error: ${msg}`;
-      sendBtn.disabled = false;
-      return;
-    }
-    statusEl.textContent = 'Sent!';
-    if (currentEmailContext) {
-      const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
-      emailStates[key] = 'sent';
-      selectedEmails.delete(key);
-      markAsEmailed(key);
-    }
-    if (emailQueue.length > 0) {
-      queueIndex++;
-      setTimeout(() => openQueueItem(), 900);
-    } else {
-      setTimeout(() => { closeModal(); renderAccounts(allAccounts); updateStats(); }, 1200);
-    }
-  } catch (e) {
-    statusEl.textContent = `Network error: ${e.message}`;
-    sendBtn.disabled = false;
+  // mailto URLs have a practical length limit (~2000 chars in most browsers).
+  // Warn if we're over.
+  if (mailtoUrl.length > 2000) {
+    statusEl.textContent = 'Email too long for direct open. Use Copy Body and paste into your mail client.';
+    return;
+  }
+
+  window.location.href = mailtoUrl;
+  statusEl.textContent = 'Opened in your mail client. Send from there.';
+
+  // Mark as "opened in mail" so we can distinguish from real "sent" later
+  if (currentEmailContext) {
+    const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
+    emailStates[key] = 'sent';  // treat as sent for UI purposes
+    selectedEmails.delete(key);
+    markAsEmailed(key);
+  }
+  if (emailQueue.length > 0) {
+    queueIndex++;
+    setTimeout(() => openQueueItem(), 900);
+  } else {
+    setTimeout(() => { closeModal(); renderAccounts(allAccounts); updateStats(); }, 1200);
   }
 }
 
@@ -3177,7 +3158,8 @@ if (window.AUTH_TOKEN) {
       <li><code>↻ Refresh Research</code> — re-fetches the research summary only (SEC filings, earnings, news). Cheaper and faster.</li>
       <li><code>↻ Refresh GTM</code> — regenerates the value hypothesis from existing research (does not re-fetch web).</li>
       <li><code>+ Find Contacts</code> — asks Claude to identify additional targets at the account, deduped against existing contacts.</li>
-      <li><code>Send Email</code> — copies the drafted email to your clipboard. OutboundRun never sends on your behalf.</li>
+      <li><code>Open in Mail</code> — opens the drafted email in your default mail client (Gmail, Outlook, Apple Mail) with the to / subject / body pre-filled. You click Send in your real inbox, so the email comes from your account with your signature.</li>
+      <li><code>Open All in Mail</code> / <code>Open Selected in Mail</code> — reviews each drafted email one at a time, opens in your mail client on Send.</li>
     </ul>
 
     <h3>Keyboard shortcuts</h3>
