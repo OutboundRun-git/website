@@ -2580,12 +2580,41 @@ function onUploadFile(evt) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    pendingUploadCsv = e.target.result;
-    const preview = pendingUploadCsv.split('\n').slice(0, 6).join('\n');
+    // Strip UTF-8 BOM if present
+    let text = e.target.result;
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    pendingUploadCsv = text;
+
+    const lines = text.split('\n');
+    const headerLine = (lines[0] || '').trim();
+    const previewLines = lines.slice(0, 6).join('\n');
+
+    // Naive column detection (splits on comma; ignores quoted commas — good
+    // enough for a pre-check heuristic).
+    const cols = headerLine
+      .split(',')
+      .map(c => c.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+    const colsLower = cols.map(c => c.toLowerCase());
+    const NAME_ALIASES = ['account_name', 'name', 'account', 'company', 'company_name'];
+    const hasName = colsLower.some(c => NAME_ALIASES.includes(c));
+
     const pv = document.getElementById('upload-preview');
     pv.style.display = 'block';
-    pv.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB) — first 5 rows:\n\n${preview}`;
-    document.getElementById('upload-submit-btn').disabled = false;
+    const submitBtn = document.getElementById('upload-submit-btn');
+    const fileInfo = `<strong>${escHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+    const preBlock = `<pre style="margin-top:8px;white-space:pre-wrap;">${escHtml(previewLines)}</pre>`;
+
+    if (cols.length === 0) {
+      pv.innerHTML = `${fileInfo}<br><span style="color:#f85149;">⚠ Could not parse any columns. Is this a CSV with commas?</span>${preBlock}`;
+      submitBtn.disabled = true;
+    } else if (!hasName) {
+      pv.innerHTML = `${fileInfo}<br><span style="color:#f85149;">⚠ Missing account_name column.</span> Accepted: <code>${NAME_ALIASES.join(', ')}</code>. Detected: <code>${cols.map(escHtml).join(', ')}</code>${preBlock}`;
+      submitBtn.disabled = true;
+    } else {
+      pv.innerHTML = `${fileInfo} — detected columns: <code>${cols.map(escHtml).join(', ')}</code>${preBlock}`;
+      submitBtn.disabled = false;
+    }
   };
   reader.readAsText(file);
 }

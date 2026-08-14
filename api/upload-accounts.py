@@ -38,6 +38,11 @@ class handler(BaseHandler):
         if len(csv_text.encode('utf-8')) > MAX_CSV_BYTES:
             raise HttpError(413, f'CSV exceeds {MAX_CSV_BYTES // 1024}KB limit')
 
+        # Strip UTF-8 BOM if present (Excel exports include it and it corrupts
+        # the first column name).
+        if csv_text.startswith('﻿'):
+            csv_text = csv_text.lstrip('﻿')
+
         try:
             reader = csv.DictReader(io.StringIO(csv_text))
         except csv.Error as e:
@@ -48,6 +53,18 @@ class handler(BaseHandler):
             raise HttpError(400, 'CSV had no data rows')
         if len(rows_in) > MAX_ROWS:
             raise HttpError(413, f'CSV exceeds {MAX_ROWS} rows')
+
+        # Pre-check: does any accepted name column exist? If not, bail
+        # LOUDLY with a helpful message instead of silently importing 0 rows.
+        detected_cols = [c for c in (rows_in[0].keys() if rows_in else []) if c]
+        detected_lower = {c.strip().lower() for c in detected_cols}
+        if not any(alias in detected_lower for alias in NAME_ALIASES):
+            raise HttpError(
+                422,
+                f'CSV is missing the account_name column. Accepted: '
+                f'{", ".join(NAME_ALIASES)}. Detected: '
+                f'{", ".join(detected_cols) if detected_cols else "(no columns parsed; check delimiter — must be comma)"}.'
+            )
 
         existing_numbers: set[str] = set()
         if mode == 'replace':

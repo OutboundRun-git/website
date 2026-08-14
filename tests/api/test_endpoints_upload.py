@@ -62,6 +62,33 @@ class TestUploadAccountsEndpoint:
         h.do_POST()
         assert h.response_status == 401
 
+    def test_missing_name_column_returns_422_with_helpful_message(self, make_handler, mock_db, authed_user_id):
+        mock_db.table.return_value = _chain(final_data=[])
+        # CSV has rows but NO account_name / name / company column
+        csv = 'foo,bar,baz\nx,y,z\na,b,c\n'
+        h = make_handler(self.mod.handler, body={'csv': csv, 'mode': 'merge'})
+        h.do_POST()
+        assert h.response_status == 422
+        assert 'account_name' in h.response_json['error']
+        assert 'foo' in h.response_json['error']  # detected columns should be echoed
+
+    def test_bom_prefixed_csv_is_accepted(self, make_handler, mock_db, authed_user_id):
+        mock_db.table.return_value = _chain(final_data=[])
+        # Excel adds UTF-8 BOM to CSV exports; must not corrupt the first column
+        csv = '﻿account_name,industry\nSnowflake,Data\n'
+        h = make_handler(self.mod.handler, body={'csv': csv, 'mode': 'merge'})
+        h.do_POST()
+        assert h.response_status == 200
+        assert h.response_json['added'] == 1
+
+    def test_name_alias_case_insensitive(self, make_handler, mock_db, authed_user_id):
+        mock_db.table.return_value = _chain(final_data=[])
+        csv = 'Company,Industry\nSnowflake,Data\n'
+        h = make_handler(self.mod.handler, body={'csv': csv, 'mode': 'merge'})
+        h.do_POST()
+        assert h.response_status == 200
+        assert h.response_json['added'] == 1
+
 
 class TestUploadProductsEndpoint:
     @pytest.fixture(autouse=True)
