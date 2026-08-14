@@ -53,7 +53,7 @@
       <a href="/#how">How it works</a>
       <a href="/#compare">Vs alternatives</a>
       <a href="/#faq">FAQ</a>
-      <a href="/login/">Log in</a>
+      <a href="/login/" id="nav-auth-link">Log in</a>
       <a href="/#demo" class="btn btn-ghost">Book a 15-min demo</a>
     </nav>
   </div>
@@ -160,5 +160,29 @@
 <!-- <script defer src="/_vercel/insights/script.js"></script> --> <!-- enable Analytics in Vercel dashboard first -->
 <script defer src="/_vercel/speed-insights/script.js"></script>
 
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const supabase = createClient(
+    'https://bofukvujflsamvhzdrxh.supabase.co',
+    'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U',
+    { auth: { persistSession: true, detectSessionInUrl: true, autoRefreshToken: true } }
+  );
+  function paintAuthNav(session) {
+    const link = document.getElementById('nav-auth-link');
+    if (!link) return;
+    if (session) {
+      link.textContent = 'Sign out';
+      link.href = '#';
+      link.onclick = async (e) => { e.preventDefault(); await supabase.auth.signOut(); window.location.replace('/login/'); };
+    } else {
+      link.textContent = 'Log in';
+      link.href = '/login/';
+      link.onclick = null;
+    }
+  }
+  const { data: { session } } = await supabase.auth.getSession();
+  paintAuthNav(session);
+  supabase.auth.onAuthStateChange((_e, s) => paintAuthNav(s));
+</script>
 </body>
 </html>
