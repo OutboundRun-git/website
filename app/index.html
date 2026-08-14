@@ -616,27 +616,58 @@
 <!-- ─── Upload accounts modal ─────────────────────────────────────── -->
 <div class="setup-overlay" id="upload-overlay">
   <div class="setup-panel">
-    <h2>Upload account list</h2>
-    <p class="setup-lead">Drop a CSV. Required column: <code>account_name</code> (or <code>name</code>/<code>company</code>). Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>. <a href="#" onclick="downloadSampleCsv(event)" style="color:#58a6ff; margin-left:8px;">↓ Download sample CSV</a></p>
+    <h2>Add accounts</h2>
+    <p class="setup-lead">Add the companies you want to research and sell to. You can type them one per line, or upload a spreadsheet if you already have one.</p>
 
-    <div class="upload-drop" id="upload-drop" onclick="document.getElementById('upload-file').click()">
-      <div style="font-size:28px; margin-bottom:8px">⬆</div>
-      <div>Click or drop a CSV here</div>
-      <div style="font-size:11px; margin-top:6px">Accounts will be added to your workspace</div>
+    <!-- Tabs -->
+    <div class="upload-tabs" style="display:flex; gap:0; border-bottom:1px solid #30363d; margin-bottom:16px;">
+      <button class="upload-tab active" data-tab="type" onclick="switchUploadTab('type')"
+              style="padding:10px 20px; background:transparent; border:none; border-bottom:2px solid #58a6ff; color:#e1e4e8; font-weight:500; cursor:pointer; font-size:13px;">
+        ✍ Type them in
+      </button>
+      <button class="upload-tab" data-tab="file" onclick="switchUploadTab('file')"
+              style="padding:10px 20px; background:transparent; border:none; border-bottom:2px solid transparent; color:#8b949e; cursor:pointer; font-size:13px;">
+        📄 Upload a file
+      </button>
     </div>
-    <input type="file" id="upload-file" accept=".csv,text/csv" style="display:none" onchange="onUploadFile(event)">
 
-    <div class="upload-mode">
-      <label><input type="radio" name="upload-mode" value="merge" checked> Merge (add new, keep existing)</label>
-      <label><input type="radio" name="upload-mode" value="replace"> Replace (wipe existing first)</label>
+    <!-- Tab: type them in (default) -->
+    <div id="upload-pane-type">
+      <p class="setup-hint">One company per line. You can also paste from a spreadsheet or a doc. That is it. We take care of the rest.</p>
+      <textarea id="type-names-box" rows="10"
+                placeholder="Snowflake&#10;Databricks&#10;Datadog&#10;MongoDB&#10;Ramp&#10;..."
+                oninput="onTypeNamesChange()"
+                style="width:100%; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-family:inherit; font-size:14px; line-height:1.6; resize:vertical;"></textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+        <span id="type-names-count" style="font-size:12px; color:#8b949e;">0 accounts</span>
+        <span style="font-size:12px; color:#8b949e;">Missing details (industry, website, notes)? OutboundRun figures those out during research.</span>
+      </div>
     </div>
 
-    <div class="upload-preview" id="upload-preview" style="display:none"></div>
+    <!-- Tab: upload a file (hidden by default) -->
+    <div id="upload-pane-file" style="display:none;">
+      <p class="setup-hint">Drop a CSV. Required column: <code>account_name</code> (or <code>name</code>/<code>company</code>). Optional: <code>account_number</code>, <code>industry</code>, <code>website</code>, <code>crm_id</code>, <code>notes</code>. <a href="#" onclick="downloadSampleCsv(event)" style="color:#58a6ff; margin-left:8px;">↓ Download sample CSV</a></p>
+
+      <div class="upload-drop" id="upload-drop" onclick="document.getElementById('upload-file').click()">
+        <div style="font-size:28px; margin-bottom:8px">⬆</div>
+        <div>Click or drop a CSV here</div>
+        <div style="font-size:11px; margin-top:6px">Accounts will be added to your workspace</div>
+      </div>
+      <input type="file" id="upload-file" accept=".csv,text/csv" style="display:none" onchange="onUploadFile(event)">
+
+      <div class="upload-preview" id="upload-preview" style="display:none"></div>
+    </div>
+
+    <!-- Shared mode + footer -->
+    <div class="upload-mode" style="margin-top:16px;">
+      <label><input type="radio" name="upload-mode" value="merge" checked> Add these to what I already have</label>
+      <label><input type="radio" name="upload-mode" value="replace"> Replace my whole list with these</label>
+    </div>
 
     <div class="setup-footer">
       <span class="setup-status" id="upload-status"></span>
       <button class="btn-secondary" onclick="closeUploadAccounts()">Cancel</button>
-      <button class="btn-primary" id="upload-submit-btn" onclick="doUploadAccounts()" disabled>Upload</button>
+      <button class="btn-primary" id="upload-submit-btn" onclick="doUploadAccounts()" disabled>Add accounts</button>
     </div>
   </div>
 </div>
@@ -2566,9 +2597,15 @@ function openUploadAccounts() {
   pendingUploadCsv = null;
   document.getElementById('upload-preview').style.display = 'none';
   document.getElementById('upload-preview').textContent = '';
-  document.getElementById('upload-submit-btn').disabled = true;
   document.getElementById('upload-status').textContent = '';
+  const box = document.getElementById('type-names-box');
+  if (box) box.value = '';
+  const cnt = document.getElementById('type-names-count');
+  if (cnt) cnt.textContent = '0 accounts';
+  switchUploadTab('type');  // default to the human-friendly tab
   document.getElementById('upload-overlay').classList.add('open');
+  // Focus the textarea so the user can just start typing
+  setTimeout(() => document.getElementById('type-names-box')?.focus(), 50);
 }
 
 function closeUploadAccounts() {
@@ -2639,16 +2676,73 @@ function onUploadFile(evt) {
   });
 })();
 
+// ============================================================================
+// UPLOAD MODAL — two tabs: type-in vs file
+// ============================================================================
+let uploadActiveTab = 'type';
+
+function switchUploadTab(tab) {
+  uploadActiveTab = tab;
+  document.querySelectorAll('.upload-tab').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.classList.toggle('active', isActive);
+    btn.style.borderBottomColor = isActive ? '#58a6ff' : 'transparent';
+    btn.style.color = isActive ? '#e1e4e8' : '#8b949e';
+    btn.style.fontWeight = isActive ? '500' : '400';
+  });
+  document.getElementById('upload-pane-type').style.display = tab === 'type' ? '' : 'none';
+  document.getElementById('upload-pane-file').style.display = tab === 'file' ? '' : 'none';
+  refreshUploadSubmitState();
+}
+
+function onTypeNamesChange() {
+  const raw = document.getElementById('type-names-box').value || '';
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  document.getElementById('type-names-count').textContent =
+    `${lines.length} account${lines.length === 1 ? '' : 's'}`;
+  refreshUploadSubmitState();
+}
+
+function refreshUploadSubmitState() {
+  const btn = document.getElementById('upload-submit-btn');
+  if (uploadActiveTab === 'type') {
+    const raw = document.getElementById('type-names-box').value || '';
+    const count = raw.split('\n').map(l => l.trim()).filter(Boolean).length;
+    btn.disabled = count === 0;
+    btn.textContent = count === 0 ? 'Add accounts' : `Add ${count} account${count === 1 ? '' : 's'}`;
+  } else {
+    btn.disabled = !pendingUploadCsv;
+    btn.textContent = 'Add accounts';
+  }
+}
+
+function _csvFromTypedNames(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const escape = v => (/[",\n\r]/.test(v)) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const rows = ['account_name'].concat(lines.map(escape));
+  return rows.join('\n');
+}
+
 async function doUploadAccounts() {
-  if (!pendingUploadCsv) return;
   const mode = document.querySelector('input[name="upload-mode"]:checked').value;
   const statusEl = document.getElementById('upload-status');
-  statusEl.textContent = 'Uploading...';
+
+  let csv = '';
+  if (uploadActiveTab === 'type') {
+    const raw = document.getElementById('type-names-box').value || '';
+    if (!raw.trim()) return;
+    csv = _csvFromTypedNames(raw);
+  } else {
+    if (!pendingUploadCsv) return;
+    csv = pendingUploadCsv;
+  }
+
+  statusEl.textContent = 'Adding...';
   statusEl.className = 'setup-status';
   try {
     const resp = await apiFetch('/api/upload-accounts', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csv: pendingUploadCsv, mode }),
+      body: JSON.stringify({ csv, mode }),
     });
     if (!resp.ok) throw new Error(await respError(resp));
     const summary = await resp.json();
@@ -2656,7 +2750,7 @@ async function doUploadAccounts() {
     statusEl.className = 'setup-status ok';
     setTimeout(() => { closeUploadAccounts(); init(); }, 900);
   } catch (e) {
-    statusEl.textContent = 'Upload failed: ' + e.message;
+    statusEl.textContent = 'Something went wrong: ' + e.message;
     statusEl.className = 'setup-status err';
   }
 }
