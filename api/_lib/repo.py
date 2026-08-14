@@ -106,6 +106,41 @@ def delete_user(user_id: str) -> None:
 
 
 # ============================================================================
+# gmail_connections (one row per user; refresh_token never leaves the server)
+# ============================================================================
+
+def save_gmail_connection(user_id: str, refresh_token: str, email_addr: str) -> None:
+    get_db().table('gmail_connections').upsert(
+        {'user_id': user_id, 'refresh_token': refresh_token, 'email': email_addr},
+        on_conflict='user_id',
+    ).execute()
+
+
+def get_gmail_connection(user_id: str) -> dict | None:
+    """Server-side only. Returns full row including refresh_token, or None."""
+    resp = (get_db().table('gmail_connections')
+        .select('user_id, refresh_token, email, connected_at')
+        .eq('user_id', user_id)
+        .limit(1)
+        .execute())
+    rows = resp.data or []
+    return rows[0] if rows else None
+
+
+def get_gmail_status(user_id: str) -> dict:
+    """Browser-safe. Returns {connected: bool, email: str|None} — never
+    exposes the refresh_token."""
+    row = get_gmail_connection(user_id)
+    if not row:
+        return {'connected': False, 'email': None}
+    return {'connected': True, 'email': row.get('email')}
+
+
+def delete_gmail_connection(user_id: str) -> None:
+    get_db().table('gmail_connections').delete().eq('user_id', user_id).execute()
+
+
+# ============================================================================
 # jobs (background job status)
 # ============================================================================
 

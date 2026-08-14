@@ -1,13 +1,21 @@
 """POST /api/send-email
 Body: {to, subject, body}
-Hosted version is CLIPBOARD-ONLY. Returns the payload for the UI to copy.
-No SMTP, no Gmail, no external send path."""
+
+Behavior:
+- If the user has connected Gmail: actually send via Gmail API. Response:
+  {sent: true, via: 'gmail', message_id: '...', to, subject, body}
+- Otherwise: return the payload so the client can fall back to a mailto: link
+  or clipboard. Response:
+  {sent: false, via: 'clipboard', to, subject, body}
+"""
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from _lib.http import BaseHandler, HttpError, endpoint
 from _lib import repo
+from _lib import env
+from _lib.gmail import refresh_access_token, send as gmail_send, GmailError
 
 
 def _signature(cfg: dict) -> str:
@@ -53,6 +61,44 @@ class handler(BaseHandler):
         sig = _signature(cfg)
         full_body = f'{email_body.rstrip()}\n\n{sig}' if sig and sig not in email_body else email_body
 
+        # Real Gmail send if the user is connected AND the deployment has
+        # GOOGLE_CLIENT_ID/SECRET configured.
+        if env.gmail_configured():
+            connection = repo.get_gmail_connection(user_id)
+            if connection:
+                try:
+                    access_token = refresh_access_token(connection['refresh_token'])
+                    message_id = gmail_send(
+                        access_token=access_token,
+                        from_email=connection['email'],
+                        to=to,
+                        subject=subject,
+                        body=full_body,
+                    )
+                    self._ok({
+                        'sent': True,
+                        'via': 'gmail',
+                        'message_id': message_id,
+                        'from': connection['email'],
+                        'to': to,
+                        'subject': subject,
+                        'body': full_body,
+                    })
+                    return
+                except GmailError as e:
+                    # Return the error to the client but also include the
+                    # payload so they can fall back to mailto/clipboard.
+                    self._ok({
+                        'sent': False,
+                        'via': 'clipboard',
+                        'gmail_error': str(e),
+                        'to': to,
+                        'subject': subject,
+                        'body': full_body,
+                    })
+                    return
+
+        # Fallback: clipboard/mailto path
         self._ok({
             'sent': False,
             'via': 'clipboard',

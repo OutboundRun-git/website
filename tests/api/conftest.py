@@ -17,6 +17,8 @@ os.environ.setdefault('SUPABASE_URL', 'https://test-project.supabase.co')
 os.environ.setdefault('SUPABASE_ANON_KEY', 'sb_publishable_test_key_placeholder_XYZ12345')
 os.environ.setdefault('SUPABASE_SERVICE_ROLE_KEY', 'eyJtest_service_role_key_placeholder_ABCDE1234567890')
 os.environ.setdefault('ANTHROPIC_API_KEY', 'sk-ant-test_api_key_placeholder_abcdefgh1234567890')
+os.environ.setdefault('GOOGLE_CLIENT_ID', '1234567890-testclientidplaceholder.apps.googleusercontent.com')
+os.environ.setdefault('GOOGLE_CLIENT_SECRET', 'GOCSPX-test_client_secret_placeholder_1234')
 
 # ---------------------------------------------------------------------------
 # Ensure /api is on sys.path so `from _lib.foo import ...` resolves.

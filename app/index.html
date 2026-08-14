@@ -584,15 +584,20 @@
     </div>
 
     <div class="setup-section">
-      <h3>Email send behavior</h3>
-      <div class="setup-row"><label>Sender</label>
-        <select id="cfg-email-sender">
-          <option value="clipboard">Copy to clipboard (send from your own mail client)</option>
-          <option value="gmail" disabled>Send from Gmail (coming soon)</option>
-          <option value="outlook" disabled>Send from Outlook (coming soon)</option>
-        </select>
+      <h3>Email sending</h3>
+      <div id="gmail-connection-box" style="padding:12px 14px; background:#0d1117; border:1px solid #30363d; border-radius:6px; margin-bottom:10px;">
+        <div id="gmail-connection-state" style="font-size:13px; color:#8b949e;">Loading Gmail status...</div>
+        <div style="margin-top:10px;">
+          <button type="button" id="gmail-connect-btn" onclick="connectGmail()" style="display:none; padding:8px 14px; background:#238636; border:1px solid #2ea043; color:white; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;">
+            <svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle; margin-right:6px;"><path fill="#fff" d="M22 5.5v13a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 18.5v-13A1.5 1.5 0 0 1 3.5 4h17A1.5 1.5 0 0 1 22 5.5zM4 6l8 5 8-5v-.5H4V6zm0 12h16V8l-8 5-8-5v10z"/></svg>
+            Connect Gmail
+          </button>
+          <button type="button" id="gmail-disconnect-btn" onclick="disconnectGmail()" style="display:none; padding:8px 14px; background:transparent; border:1px solid #30363d; color:#8b949e; border-radius:6px; cursor:pointer; font-size:13px;">
+            Disconnect
+          </button>
+        </div>
       </div>
-      <div class="setup-hint">For now, emails are copied to your clipboard so you can paste and send from whatever mail client you use. Direct Gmail and Outlook sending are on the roadmap.</div>
+      <div class="setup-hint">When Gmail is connected, clicking Send in a drafted email actually sends via your Gmail. Otherwise it opens the draft in your default mail client for one-click send from there.</div>
       <div class="setup-row"><label>CTA length (minutes)</label><input type="number" id="cfg-email-cta" min="10" max="60" value="20"></div>
     </div>
 
@@ -1627,6 +1632,16 @@ function openModal(accountNumber, name, email, subject, body) {
   document.getElementById('modal-subject').value = subject || '';
   document.getElementById('modal-body-text').value = body || '';
   document.getElementById('modal-status').textContent = '';
+  // Label the primary button based on whether Gmail is connected
+  const sendBtn = document.querySelector('.modal-footer .btn-primary');
+  if (sendBtn) {
+    const connected = !!(window.GMAIL_STATUS && window.GMAIL_STATUS.connected);
+    sendBtn.textContent = connected ? 'Send' : 'Open in Mail';
+    sendBtn.title = connected
+      ? `Sends via your connected Gmail (${window.GMAIL_STATUS.email})`
+      : 'Opens the draft in your default mail client. You click Send there.';
+    sendBtn.disabled = false;
+  }
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -1643,6 +1658,7 @@ async function sendEmail() {
   const subject = document.getElementById('modal-subject').value;
   const body = document.getElementById('modal-body-text').value;
   const statusEl = document.getElementById('modal-status');
+  const sendBtn = document.querySelector('.modal-footer .btn-primary');
 
   if (currentEmailContext) {
     const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
@@ -1652,25 +1668,56 @@ async function sendEmail() {
     }
   }
 
-  // Build a mailto: URL and open it in the user's default mail client
-  // (Gmail, Outlook, Apple Mail, etc.). The user still clicks Send in their
-  // real inbox, so it goes out from their account with their signature.
-  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const gmailConnected = !!(window.GMAIL_STATUS && window.GMAIL_STATUS.connected);
 
-  // mailto URLs have a practical length limit (~2000 chars in most browsers).
-  // Warn if we're over.
+  if (gmailConnected) {
+    // Real send via Gmail API
+    statusEl.textContent = 'Sending via Gmail...';
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      const resp = await apiFetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, body }),
+      });
+      if (!resp.ok) throw new Error(await respError(resp));
+      const result = await resp.json();
+      if (result.sent && result.via === 'gmail') {
+        statusEl.textContent = `Sent from ${result.from || 'your Gmail'}`;
+        _markEmailSuccess();
+        return;
+      }
+      // Gmail wasn't used (maybe server-side error) — fall back to mailto
+      if (result.gmail_error) {
+        statusEl.textContent = 'Gmail send failed, opening in mail client instead...';
+      }
+      _fallbackToMailto(to, subject, body, statusEl);
+    } catch (e) {
+      statusEl.textContent = 'Send failed: ' + (e.message || e);
+      if (sendBtn) sendBtn.disabled = false;
+    }
+    return;
+  }
+
+  // No Gmail connection: mailto flow
+  _fallbackToMailto(to, subject, body, statusEl);
+}
+
+function _fallbackToMailto(to, subject, body, statusEl) {
+  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   if (mailtoUrl.length > 2000) {
     statusEl.textContent = 'Email too long for direct open. Use Copy Body and paste into your mail client.';
     return;
   }
-
   window.location.href = mailtoUrl;
   statusEl.textContent = 'Opened in your mail client. Send from there.';
+  _markEmailSuccess();
+}
 
-  // Mark as "opened in mail" so we can distinguish from real "sent" later
+function _markEmailSuccess() {
   if (currentEmailContext) {
     const key = `${currentEmailContext.accountNumber}_${currentEmailContext.email}`;
-    emailStates[key] = 'sent';  // treat as sent for UI purposes
+    emailStates[key] = 'sent';
     selectedEmails.delete(key);
     markAsEmailed(key);
   }
@@ -2389,7 +2436,11 @@ async function bootstrap() {
     if (!resp.ok) throw new Error('config fetch failed');
     const data = await resp.json();
     currentConfig = data.config || {};
+    window.GMAIL_STATUS = data.gmail || { connected: false, email: null };
+    window.GMAIL_AVAILABLE = !!data.gmail_available;
     updateBrand(currentConfig);
+    paintGmailConnectionBox();
+    checkGmailUrlParams();
     if (!data.complete) {
       openSetup(true);  // force first-run wizard
     }
@@ -2741,6 +2792,80 @@ async function doUploadAccounts() {
   } catch (e) {
     statusEl.textContent = 'Something went wrong: ' + e.message;
     statusEl.className = 'setup-status err';
+  }
+}
+
+// ============================================================================
+// GMAIL CONNECTION UI + FLOW
+// ============================================================================
+
+function paintGmailConnectionBox() {
+  const stateEl = document.getElementById('gmail-connection-state');
+  const connectBtn = document.getElementById('gmail-connect-btn');
+  const disconnectBtn = document.getElementById('gmail-disconnect-btn');
+  if (!stateEl || !connectBtn || !disconnectBtn) return;
+
+  const status = window.GMAIL_STATUS || { connected: false, email: null };
+  const available = !!window.GMAIL_AVAILABLE;
+
+  if (!available) {
+    stateEl.innerHTML = '<span style="color:#8b949e;">Gmail sending is not configured on this deployment.</span>';
+    connectBtn.style.display = 'none';
+    disconnectBtn.style.display = 'none';
+    return;
+  }
+
+  if (status.connected) {
+    stateEl.innerHTML = `<span style="color:#3fb950;">✓ Connected as <strong>${escHtml(status.email || '')}</strong></span><div style="margin-top:4px; font-size:12px; color:#8b949e;">Send buttons will deliver via your Gmail.</div>`;
+    connectBtn.style.display = 'none';
+    disconnectBtn.style.display = 'inline-block';
+  } else {
+    stateEl.innerHTML = '<span style="color:#8b949e;">Not connected. Emails will open in your default mail client for you to send manually.</span>';
+    connectBtn.style.display = 'inline-block';
+    disconnectBtn.style.display = 'none';
+  }
+}
+
+async function connectGmail() {
+  const btn = document.getElementById('gmail-connect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting...'; }
+  try {
+    const resp = await apiFetch('/api/gmail-connect-start');
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { url } = await resp.json();
+    if (!url) throw new Error('No OAuth URL returned');
+    window.location.href = url;
+  } catch (e) {
+    showToast('Could not start Gmail connect: ' + (e.message || e), 'err');
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect Gmail'; }
+  }
+}
+
+async function disconnectGmail() {
+  if (!confirm('Disconnect Gmail? Emails will fall back to opening in your default mail client.')) return;
+  try {
+    const resp = await apiFetch('/api/gmail-disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    window.GMAIL_STATUS = { connected: false, email: null };
+    paintGmailConnectionBox();
+    showToast('Gmail disconnected');
+  } catch (e) {
+    showToast('Could not disconnect: ' + (e.message || e), 'err');
+  }
+}
+
+function checkGmailUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('gmail_connected') === '1') {
+    showToast('Gmail connected. Send buttons will now deliver via your Gmail.');
+    history.replaceState({}, '', window.location.pathname);
+  } else if (params.get('gmail_error')) {
+    const err = params.get('gmail_error').replace(/_/g, ' ');
+    showToast('Gmail connect failed: ' + err, 'err');
+    history.replaceState({}, '', window.location.pathname);
   }
 }
 

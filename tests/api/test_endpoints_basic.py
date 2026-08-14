@@ -22,18 +22,23 @@ class TestConfigEndpoint:
         self.mod = load_endpoint('config')
 
     def test_get_returns_empty_config_when_no_row(self, make_handler, mock_db, authed_user_id):
-        mock_db.table.return_value = _chain(final_data=[])
+        # Endpoint calls two tables now (configs + gmail_connections); both return empty
+        calls = iter([_chain(final_data=[]), _chain(final_data=[])])
+        mock_db.table.side_effect = lambda *a, **kw: next(calls)
         h = make_handler(self.mod.handler)
         h.do_GET()
         assert h.response_status == 200
-        assert h.response_json == {'config': {}, 'complete': False}
+        assert h.response_json['config'] == {}
+        assert h.response_json['complete'] is False
 
     def test_get_returns_saved_config(self, make_handler, mock_db, authed_user_id):
         cfg = {
             'user': {'full_name': 'Kim', 'email': 'k@x.com'},
             'company': {'name': 'OutboundRun', 'products': [{'name': 'OutboundRun'}]},
         }
-        mock_db.table.return_value = _chain(final_data=[{'data': cfg}])
+        # configs -> [cfg row], gmail_connections -> []
+        calls = iter([_chain(final_data=[{'data': cfg}]), _chain(final_data=[])])
+        mock_db.table.side_effect = lambda *a, **kw: next(calls)
         h = make_handler(self.mod.handler)
         h.do_GET()
         assert h.response_status == 200
@@ -96,9 +101,12 @@ class TestSendEmailEndpoint:
         self.mod = load_endpoint('send-email')
 
     def test_clipboard_mode_returns_payload(self, make_handler, mock_db, authed_user_id):
-        mock_db.table.return_value = _chain(final_data=[
-            {'data': {'user': {'full_name': 'Kim'}, 'company': {'name': 'OR'}}}
+        # configs -> one row, gmail_connections -> empty (no Gmail connected)
+        calls = iter([
+            _chain(final_data=[{'data': {'user': {'full_name': 'Kim'}, 'company': {'name': 'OR'}}}]),
+            _chain(final_data=[]),
         ])
+        mock_db.table.side_effect = lambda *a, **kw: next(calls)
         h = make_handler(self.mod.handler, body={
             'to': 'x@y.com', 'subject': 'Hi', 'body': 'Hello.'
         })
@@ -110,9 +118,11 @@ class TestSendEmailEndpoint:
         assert 'Hello.' in h.response_json['body']
 
     def test_appends_signature_if_missing(self, make_handler, mock_db, authed_user_id):
-        mock_db.table.return_value = _chain(final_data=[
-            {'data': {'user': {'full_name': 'Kim', 'email': 'k@x.com'}}}
+        calls = iter([
+            _chain(final_data=[{'data': {'user': {'full_name': 'Kim', 'email': 'k@x.com'}}}]),
+            _chain(final_data=[]),
         ])
+        mock_db.table.side_effect = lambda *a, **kw: next(calls)
         h = make_handler(self.mod.handler, body={
             'to': 'x@y.com', 'subject': 'Hi', 'body': 'Hello.'
         })
