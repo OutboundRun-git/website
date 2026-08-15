@@ -5,20 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f8f6f1">
 
-<!-- Auth gate: redirect to /login/ immediately if no Supabase session in
-     localStorage. Skips the check if the URL contains a magic-link fragment
-     (returning user), so Supabase JS can finish establishing the session. -->
-<script>
-(function() {
-  if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) return;
-  try {
-    if (!localStorage.getItem('sb-bofukvujflsamvhzdrxh-auth-token')) {
-      window.location.replace('/login/');
-    }
-  } catch (e) {}
-})();
-</script>
-
 <title>OutboundRun: Enterprise outbound, backed by research.</title>
 <meta name="description" content="OutboundRun automates 4-6 hours of per-account research (SEC filings, org charts, tech signals, live news) and drafts per-persona outreach designed to hit 10-15% reply rates. 5x the industry norm for enterprise B2B.">
 <link rel="canonical" href="https://outboundrun.com/">
