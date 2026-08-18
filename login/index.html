@@ -140,18 +140,17 @@
 
   <div id="signin-view">
     <h1 class="auth-heading">Sign in</h1>
-    <p class="auth-sub">Enter your work email. We will send you a one-time sign-in link. No password.</p>
+    <p class="auth-sub">Access is invite-only. Enter the email address on your account and we will send you a one-time sign-in link. No password.</p>
 
     <form id="signin-form" class="auth-form" novalidate>
-      <label for="email">Work email</label>
+      <label for="email">Account email</label>
       <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@company.com">
       <button type="submit" id="submit-btn">Send sign-in link</button>
       <div id="status" class="auth-status" role="status" aria-live="polite"></div>
     </form>
 
     <div class="auth-footer">
-      New to OutboundRun? Just enter your email. Your account is created on first sign-in.<br><br>
-      By signing in you agree to how we use your data. Questions: <a href="mailto:info@outboundrun.com">info@outboundrun.com</a>.
+      Don't have access yet? Email <a href="mailto:info@outboundrun.com">info@outboundrun.com</a> to request access. Accounts are granted manually.
     </div>
   </div>
 
@@ -212,10 +211,18 @@
       email,
       options: {
         emailRedirectTo: POST_AUTH_URL,
-        shouldCreateUser: true,
+        shouldCreateUser: false,
       },
     });
     if (error) throw error;
+  }
+
+  function friendlyAuthError(err) {
+    const raw = (err && err.message ? err.message : '').toLowerCase();
+    if (raw.includes('signup') || raw.includes('sign up') || raw.includes('not allowed') || raw.includes('user not found')) {
+      return 'This email is not on the access list. Email info@outboundrun.com to request access.';
+    }
+    return 'Something went wrong: ' + (err.message || 'please try again');
   }
 
   form.addEventListener('submit', async (event) => {
@@ -234,7 +241,7 @@
       await sendLink(email);
       showCheckEmail(email);
     } catch (err) {
-      statusEl.textContent = 'Something went wrong: ' + (err.message || 'please try again');
+      statusEl.textContent = friendlyAuthError(err);
       statusEl.className = 'auth-status error';
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send sign-in link';
@@ -253,7 +260,7 @@
         resendLink.style.pointerEvents = 'auto';
       }, 3000);
     } catch (err) {
-      alert('Could not resend: ' + (err.message || 'try again'));
+      alert(friendlyAuthError(err));
     }
   });
 
