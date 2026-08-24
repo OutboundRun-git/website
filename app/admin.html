@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin — OutboundRun</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #21262d;
+    --border: #30363d;
+    --border-strong: #444c56;
+    --ink: #e1e4e8;
+    --ink-mute: #8b949e;
+    --accent: #7a3818;
+    --accent-hi: #a24d24;
+    --danger: #b3271e;
+    --ok: #1a6b2c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    margin: 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+  header .meta { color: var(--ink-mute); font-size: 12px; }
+  header .spacer { flex: 1; }
+  header a, header button {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  header a:hover, header button:hover { background: #30363d; }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 10px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-mute);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    margin: 0 0 4px 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .panel p.sub { color: var(--ink-mute); font-size: 12px; margin: 0 0 16px 0; }
+  form.row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+  form.row .field { display: flex; flex-direction: column; gap: 4px; }
+  form.row label {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  input[type=text], input[type=email], select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    min-width: 200px;
+  }
+  input[type=text]:focus, input[type=email]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.primary:hover { background: var(--accent-hi); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.small {
+    background: var(--panel-2);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button.small:hover { background: #30363d; }
+  button.small.danger { border-color: var(--danger); color: #ff9b96; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-strong);
+    color: var(--ink-mute);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:hover td { background: #1c2128; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .pill.admin { background: #4a2818; color: #ffb98c; }
+  .pill.manager { background: #1e3a5f; color: #a3c9ff; }
+  .pill.member { background: #262b33; color: #a0a8b0; }
+  .pill.pending { background: #3a2f1e; color: #ffd18c; }
+  .toast {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    max-width: 400px;
+    z-index: 100;
+  }
+  .toast.error { border-color: var(--danger); color: #ff9b96; }
+  .toast.success { border-color: var(--ok); color: #6ecf7c; }
+  .muted { color: var(--ink-mute); }
+  .empty { text-align: center; color: var(--ink-mute); padding: 40px 20px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OutboundRun · Admin</h1>
+  <span class="meta" id="auth-email"></span>
+  <div class="spacer"></div>
+  <a href="/app/">← Back to app</a>
+  <button onclick="signOut()">Sign out</button>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="companies" onclick="switchTab('companies')">Companies</button>
+    <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
+  </div>
+
+  <!-- ============ COMPANIES ============ -->
+  <section id="tab-companies">
+    <div class="panel">
+      <h2>New company</h2>
+      <p class="sub">Create a company first, then invite users into it from the Users tab.</p>
+      <form class="row" id="create-company-form">
+        <div class="field">
+          <label for="company-name">Name</label>
+          <input type="text" id="company-name" required maxlength="200" placeholder="Acme Sales Inc.">
+        </div>
+        <div class="field">
+          <label for="company-slug">Slug (optional)</label>
+          <input type="text" id="company-slug" maxlength="63" placeholder="auto-generated">
+        </div>
+        <button type="submit" class="primary">Create company</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>All companies</h2>
+      <p class="sub">Rename inline. Deleting is not exposed here yet.</p>
+      <table id="companies-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Slug</th>
+            <th>Members</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="companies-tbody">
+          <tr><td colspan="5" class="empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ USERS ============ -->
+  <section id="tab-users" class="hidden">
+    <div class="panel">
+      <h2>Invite user</h2>
+      <p class="sub">Sends a magic-link email. When they sign in, they land in the selected company with the selected role.</p>
+      <form class="row" id="invite-form">
+        <div class="field">
+          <label for="invite-email">Email</label>
+          <input type="email" id="invite-email" required placeholder="user@company.com">
+        </div>
+        <div class="field">
+          <label for="invite-company">Company</label>
+          <select id="invite-company" required></select>
+        </div>
+        <div class="field">
+          <label for="invite-role">Role</label>
+          <select id="invite-role">
+            <option value="member">Member (own rows)</option>
+            <option value="manager">Manager (all company rows)</option>
+          </select>
+        </div>
+        <button type="submit" class="primary">Send invite</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>All users</h2>
+      <p class="sub">Change company, role, or admin status directly in the table.</p>
+      <table id="users-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Company</th>
+            <th>Role</th>
+            <th>Admin</th>
+            <th>Last sign-in</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="6" class="empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  const SUPABASE_URL = 'https://bofukvujflsamvhzdrxh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_wifBNzRM_b2PgbEW_Ek41Q_LtiGej-U';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, detectSessionInUrl: true, autoRefreshToken: true },
+  });
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { window.location.replace('/login/'); throw new Error('no session'); }
+
+  // Admin gate — non-admins are bounced back to the app (which will show them
+  // the company-pending screen if they don't have a company_id).
+  const { data: profile } = await supabase
+    .from('profiles').select('is_admin').eq('id', session.user.id).single();
+  if (!profile || !profile.is_admin) {
+    window.location.replace('/app/');
+    throw new Error('not admin');
+  }
+
+  window.SUPABASE = supabase;
+  window.AUTH_TOKEN = session.access_token;
+  document.getElementById('auth-email').textContent = session.user.email;
+
+  window.signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.replace('/login/');
+  };
+
+  supabase.auth.onAuthStateChange((_e, s) => {
+    if (s) window.AUTH_TOKEN = s.access_token;
+    else window.location.replace('/login/');
+  });
+
+  document.dispatchEvent(new Event('admin-ready'));
+</script>
+
+<script>
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, {
+      'Authorization': 'Bearer ' + (window.AUTH_TOKEN || ''),
+    });
+    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+      opts.body = JSON.stringify(opts.body);
+      opts.headers['Content-Type'] = 'application/json';
+    }
+    return fetch(path, opts);
+  }
+
+  async function respError(resp) {
+    try { const j = await resp.json(); return j.error || resp.statusText; }
+    catch { return resp.statusText || 'HTTP ' + resp.status; }
+  }
+
+  function toast(msg, kind) {
+    const t = document.createElement('div');
+    t.className = 'toast ' + (kind || '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    try { return new Date(s).toLocaleString(); } catch { return s; }
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[c]);
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.getElementById('tab-companies').classList.toggle('hidden', name !== 'companies');
+    document.getElementById('tab-users').classList.toggle('hidden', name !== 'users');
+  }
+  window.switchTab = switchTab;
+
+  let COMPANIES = [];
+  let USERS = [];
+  let PENDING = [];
+
+  async function loadCompanies() {
+    const r = await apiFetch('/api/list-companies');
+    if (!r.ok) { toast('Load companies failed: ' + await respError(r), 'error'); return; }
+    const d = await r.json();
+    COMPANIES = d.companies || [];
+    renderCompaniesTable();
+    renderInviteCompanySelect();
+  }
+
+  async function loadUsers() {
+    const r = await apiFetch('/api/list-users');
+    if (!r.ok) { toast('Load users failed: ' + await respError(r), 'error'); return; }
+    const d = await r.json();
+    USERS = d.users || [];
+    PENDING = d.pending_invites || [];
+    renderUsersTable();
+  }
+
+  function renderCompaniesTable() {
+    const tb = document.getElementById('companies-tbody');
+    if (!COMPANIES.length) {
+      tb.innerHTML = '<tr><td colspan="5" class="empty">No companies yet. Create the first one above.</td></tr>';
+      return;
+    }
+    tb.innerHTML = COMPANIES.map(c => `
+      <tr data-id="${escapeHtml(c.id)}">
+        <td><input type="text" value="${escapeHtml(c.name)}" data-field="name" style="min-width:180px;"></td>
+        <td><input type="text" value="${escapeHtml(c.slug || '')}" data-field="slug" style="min-width:140px;" placeholder="—"></td>
+        <td class="muted">${c.member_count || 0}</td>
+        <td class="muted">${fmtDate(c.created_at)}</td>
+        <td><button class="small" onclick="saveCompanyRow('${c.id}')">Save</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderInviteCompanySelect() {
+    const sel = document.getElementById('invite-company');
+    if (!COMPANIES.length) {
+      sel.innerHTML = '<option value="">— no companies yet —</option>';
+      return;
+    }
+    sel.innerHTML = COMPANIES.map(c =>
+      `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
+    ).join('');
+  }
+
+  function renderUsersTable() {
+    const tb = document.getElementById('users-tbody');
+    const rows = [];
+
+    for (const u of USERS) {
+      const companyOptions = ['<option value="">— none —</option>'].concat(
+        COMPANIES.map(c => {
+          const sel = c.id === u.company_id ? ' selected' : '';
+          return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(c.name)}</option>`;
+        })
+      ).join('');
+      const isMgr = u.role === 'manager' ? ' selected' : '';
+      const isMbr = u.role !== 'manager' ? ' selected' : '';
+      const adminChecked = u.is_admin ? ' checked' : '';
+      rows.push(`
+        <tr data-id="${escapeHtml(u.id)}">
+          <td>${escapeHtml(u.email)}</td>
+          <td><span class="pill ${u.confirmed_at ? 'member' : 'pending'}">${u.confirmed_at ? 'active' : 'not-confirmed'}</span></td>
+          <td><select data-field="company_id">${companyOptions}</select></td>
+          <td>
+            <select data-field="role">
+              <option value="member"${isMbr}>member</option>
+              <option value="manager"${isMgr}>manager</option>
+            </select>
+          </td>
+          <td><input type="checkbox" data-field="is_admin"${adminChecked}></td>
+          <td class="muted">${fmtDate(u.last_sign_in_at)} <button class="small" style="float:right" onclick="saveUserRow('${u.id}')">Save</button></td>
+        </tr>
+      `);
+    }
+
+    for (const inv of PENDING) {
+      rows.push(`
+        <tr>
+          <td>${escapeHtml(inv.email)}</td>
+          <td><span class="pill pending">pending invite</span></td>
+          <td class="muted">${escapeHtml(inv.company ? inv.company.name : '—')}</td>
+          <td class="muted">${escapeHtml(inv.role)}</td>
+          <td class="muted">—</td>
+          <td class="muted">Invited ${fmtDate(inv.invited_at)}</td>
+        </tr>
+      `);
+    }
+
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="6" class="empty">No users yet.</td></tr>';
+    } else {
+      tb.innerHTML = rows.join('');
+    }
+  }
+
+  window.saveCompanyRow = async function(id) {
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    const name = tr.querySelector('[data-field=name]').value.trim();
+    const slug = tr.querySelector('[data-field=slug]').value.trim();
+    const r = await apiFetch('/api/update-company', {
+      method: 'POST',
+      body: { id, name, slug },
+    });
+    if (!r.ok) return toast('Update failed: ' + await respError(r), 'error');
+    toast('Saved', 'success');
+    loadCompanies();
+  };
+
+  window.saveUserRow = async function(id) {
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    const patch = {
+      id,
+      company_id: tr.querySelector('[data-field=company_id]').value || null,
+      role: tr.querySelector('[data-field=role]').value,
+      is_admin: tr.querySelector('[data-field=is_admin]').checked,
+    };
+    const r = await apiFetch('/api/update-user', { method: 'POST', body: patch });
+    if (!r.ok) return toast('Update failed: ' + await respError(r), 'error');
+    toast('Saved', 'success');
+    loadUsers();
+  };
+
+  document.getElementById('create-company-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('company-name').value.trim();
+    const slug = document.getElementById('company-slug').value.trim();
+    if (!name) return;
+    const r = await apiFetch('/api/create-company', {
+      method: 'POST',
+      body: { name, slug: slug || undefined },
+    });
+    if (!r.ok) return toast('Create failed: ' + await respError(r), 'error');
+    toast('Company created', 'success');
+    e.target.reset();
+    loadCompanies();
+  });
+
+  document.getElementById('invite-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('invite-email').value.trim().toLowerCase();
+    const company_id = document.getElementById('invite-company').value;
+    const role = document.getElementById('invite-role').value;
+    if (!email || !company_id) {
+      return toast('Email and company are required', 'error');
+    }
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      const r = await apiFetch('/api/invite-user', {
+        method: 'POST',
+        body: { email, company_id, role },
+      });
+      if (!r.ok) {
+        toast('Invite failed: ' + await respError(r), 'error');
+        return;
+      }
+      toast('Invite sent to ' + email, 'success');
+      e.target.reset();
+      loadUsers();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.addEventListener('admin-ready', async () => {
+    await loadCompanies();
+    await loadUsers();
+  });
+</script>
+
+</body>
+</html>

@@ -13,3 +13,6 @@ __pycache__/
 # Local test venv
 .venv/
 .pytest_cache/
+.env*
+.env.sr
+supabase/.temp/
