@@ -532,7 +532,13 @@
       <div class="setup-row stack">
         <label>Product catalog (used in outreach + GTM hypotheses)</label>
         <div class="setup-products" id="cfg-products"></div>
-        <div><button type="button" class="setup-add-btn" onclick="addProductRow()">+ Add product</button></div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="setup-add-btn" onclick="addProductRow()">+ Add product</button>
+          <button type="button" class="setup-add-btn" onclick="document.getElementById('products-csv-file').click()">⬆ Upload CSV</button>
+          <input type="file" id="products-csv-file" accept=".csv,text/csv" style="display:none" onchange="onProductsCsvPicked(event)">
+          <span id="products-csv-status" style="font-size:12px; color:#8b949e;"></span>
+        </div>
+        <p class="setup-hint" style="margin-top:6px;">CSV columns: <code>name</code> (aliases: <code>product</code>, <code>product_name</code>). Optional: <code>short_desc</code> (aliases: <code>description</code>, <code>desc</code>). Appends to the list above; existing names are skipped.</p>
       </div>
     </div>
 
@@ -572,6 +578,8 @@
       <div class="setup-row"><label>Your CRM</label>
         <select id="cfg-crm-type">
           <option value="none">None (web research only)</option>
+          <option value="salesforce" disabled>Salesforce (coming soon)</option>
+          <option value="dynamics365" disabled>Microsoft Dynamics 365 (coming soon)</option>
           <option value="hubspot" disabled>HubSpot (coming soon)</option>
           <option value="pipedrive" disabled>Pipedrive (coming soon)</option>
           <option value="attio" disabled>Attio (coming soon)</option>
@@ -596,9 +604,13 @@
           <button type="button" id="gmail-disconnect-btn" onclick="disconnectGmail()" style="display:none; padding:8px 14px; background:transparent; border:1px solid #30363d; color:#8b949e; border-radius:6px; cursor:pointer; font-size:13px;">
             Disconnect
           </button>
+          <button type="button" id="outlook-connect-btn" disabled title="Coming soon" style="padding:8px 14px; background:#0d1117; border:1px solid #30363d; color:#6e7681; border-radius:6px; cursor:not-allowed; font-size:13px; font-weight:600; margin-left:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle; margin-right:6px;"><path fill="#6e7681" d="M7.88 12.04q0 .45-.11.87t-.33.74-.52.5-.73.2q-.42 0-.73-.2t-.52-.5-.32-.74-.11-.86q0-.45.1-.87t.33-.73.52-.5.75-.2q.41 0 .72.2t.52.5.31.73.12.87zM24 12v9.38q0 .46-.33.8t-.8.32H7.13q-.46 0-.8-.33t-.32-.8V18H1q-.41 0-.7-.3t-.3-.7V7q0-.41.3-.7T1 6h6.5V2.55q0-.44.3-.75t.75-.3h14.9q.44 0 .75.3t.3.75V10.85l-1.24.72zM1.5 17.5h5V17q0-.56.1-1.09.11-.53.31-1.05.21-.52.5-.97.3-.45.68-.82h-.2q-.82 0-1.44-.3-.62-.3-1.04-.82-.42-.52-.63-1.2-.21-.69-.21-1.44t.21-1.45q.21-.69.63-1.2.42-.52 1.04-.82.62-.3 1.44-.3.82 0 1.44.3t1.04.82q.42.51.63 1.2.21.7.21 1.45 0 .75-.21 1.44-.21.68-.63 1.2-.42.52-1.04.82-.62.3-1.44.3h-.2q.38.37.68.82.3.45.5.97.2.52.31 1.05.1.53.1 1.09v.5h.5v-11h12.5v8.32L16 16l-8-3.9zm19-2.4V13l-4.5 2.37 4.5 1.72z"/></svg>
+            Connect Outlook (coming soon)
+          </button>
         </div>
       </div>
-      <div class="setup-hint">When Gmail is connected, clicking Send in a drafted email actually sends via your Gmail. Otherwise it opens the draft in your default mail client for one-click send from there.</div>
+      <div class="setup-hint">When Gmail is connected, clicking Send in a drafted email actually sends via your Gmail. Outlook / Microsoft 365 support is on the roadmap. Otherwise the draft opens in your default mail client for one-click send from there.</div>
       <div class="setup-row"><label>CTA length (minutes)</label><input type="number" id="cfg-email-cta" min="10" max="60" value="20"></div>
     </div>
 
@@ -2549,6 +2561,82 @@ function buildProductRow(name, desc) {
 
 function addProductRow() {
   document.getElementById('cfg-products').appendChild(buildProductRow('', ''));
+}
+
+function _parseProductsCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if (!lines.length) return { error: 'CSV is empty' };
+  const splitRow = (line) => {
+    const out = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else {
+        if (c === '"') q = true;
+        else if (c === ',') { out.push(cur); cur = ''; }
+        else cur += c;
+      }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  };
+  const headers = splitRow(lines[0]).map(h => h.toLowerCase());
+  const nameIdx = headers.findIndex(h => ['name', 'product', 'product_name'].includes(h));
+  const descIdx = headers.findIndex(h => ['short_desc', 'description', 'desc'].includes(h));
+  if (nameIdx === -1) {
+    return { error: `CSV missing name column. Got: ${headers.join(', ')}` };
+  }
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitRow(lines[i]);
+    const name = (cells[nameIdx] || '').slice(0, 200);
+    if (!name) continue;
+    const desc = descIdx >= 0 ? (cells[descIdx] || '').slice(0, 500) : '';
+    rows.push({ name, short_desc: desc });
+  }
+  return { rows };
+}
+
+function onProductsCsvPicked(event) {
+  const file = event.target.files[0];
+  const status = document.getElementById('products-csv-status');
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = _parseProductsCsv(String(reader.result || ''));
+    if (parsed.error) {
+      status.textContent = parsed.error;
+      status.style.color = '#f85149';
+      event.target.value = '';
+      return;
+    }
+    const host = document.getElementById('cfg-products');
+    const existing = new Set(
+      Array.from(host.querySelectorAll('.prod-name'))
+        .map(el => (el.value || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    let added = 0, skipped = 0;
+    for (const r of parsed.rows) {
+      const key = r.name.toLowerCase();
+      if (existing.has(key)) { skipped++; continue; }
+      host.appendChild(buildProductRow(r.name, r.short_desc));
+      existing.add(key);
+      added++;
+    }
+    status.textContent = `${added} added, ${skipped} skipped. Click Save to persist.`;
+    status.style.color = added ? '#3fb950' : '#8b949e';
+    event.target.value = '';
+  };
+  reader.onerror = () => {
+    status.textContent = 'Could not read file';
+    status.style.color = '#f85149';
+  };
+  reader.readAsText(file);
 }
 
 function renderPersonaRows(personas) {
