@@ -34,8 +34,14 @@ class handler(BaseHandler):
             raise HttpError(400, 'contact must be an object')
 
         name = (raw.get('name') or '').strip()
+        title = (raw.get('title') or '').strip()
+        email = (raw.get('email') or '').strip()
         if not name:
             raise HttpError(400, 'contact.name is required')
+        if not title:
+            raise HttpError(400, 'contact.title is required so OutboundRun can draft a persona-specific email')
+        if not email:
+            raise HttpError(400, 'contact.email is required so OutboundRun can draft an email for them')
 
         contact: dict = {}
         for field, max_len in MAX_FIELDS.items():

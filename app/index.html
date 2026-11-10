@@ -1295,8 +1295,12 @@ function buildContactsTable(acc) {
     const isDnc = doNotContact.has(key);
     const state = emailStates[key];
     const stateTag = state === 'sent' ? '<span class="sent-tag">Sent</span>' : state === 'skipped' ? '<span class="skipped-tag">Skipped</span>' : '';
+    const hasDraft = !!((c.subject || '').trim() || (c.body || '').trim());
+    const draftBtn = (hasEmail && !hasDraft)
+      ? ` <button class="row-action" title="Draft outreach email using Research + GTM for this persona" onclick="draftContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#58a6ff;">✉ Draft</button>`
+      : '';
     const emailCell = hasEmail
-      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}`
+      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}${draftBtn}`
       : `<span class="not-found">Not found</span>`;
     const mobileCell = c.mobile && c.mobile !== 'Not found' ? c.mobile : '<span class="not-found">Not found</span>';
     const action = contactActions[key] || { action: 'none', date: '' };
@@ -3320,11 +3324,12 @@ function openAddContact(accountNumber) {
   _editState().accountNumber = accountNumber;
   document.getElementById('edit-modal-title').textContent = 'Add contact';
   document.getElementById('edit-modal-fields').innerHTML = `
-    <div class="edit-row"><label>Name</label><input type="text" id="ef-name" placeholder="Jane Doe"></div>
-    <div class="edit-row"><label>Title</label><input type="text" id="ef-title" placeholder="VP of Growth"></div>
-    <div class="edit-row"><label>Email (optional)</label><input type="email" id="ef-email" placeholder="jane@company.com"></div>
+    <div class="edit-row"><label>Name <span style="color:#f85149">*</span></label><input type="text" id="ef-name" placeholder="Jane Doe" required></div>
+    <div class="edit-row"><label>Title <span style="color:#f85149">*</span></label><input type="text" id="ef-title" placeholder="VP of Growth" required></div>
+    <div class="edit-row"><label>Email <span style="color:#f85149">*</span></label><input type="email" id="ef-email" placeholder="jane@company.com" required></div>
     <div class="edit-row"><label>Mobile (optional)</label><input type="text" id="ef-mobile" placeholder="+1 555 555 5555"></div>
-    <div class="edit-row"><label>Hook (why this person, optional)</label><textarea id="ef-hook" placeholder="Why Jane is a good target — their role, likely pain points, timing signal"></textarea></div>
+    <div class="edit-row"><label>Hook (why this person, optional — OutboundRun can draft one for you)</label><textarea id="ef-hook" placeholder="Why Jane is a good target — their role, likely pain points, timing signal"></textarea></div>
+    <p style="font-size:12px; color:#8b949e; margin-top:6px;">Name, title, and email are required so OutboundRun can draft a persona-specific outreach email from the Research + GTM.</p>
   `;
   document.getElementById('edit-overlay').classList.add('open');
 }
@@ -3398,8 +3403,8 @@ async function saveEdit() {
         mobile: document.getElementById('ef-mobile').value.trim(),
         hook: document.getElementById('ef-hook').value.trim(),
       };
-      if (!contact.name) {
-        showToast('Name is required', 'err');
+      if (!contact.name || !contact.title || !contact.email) {
+        showToast('Name, title, and email are required', 'err');
         return;
       }
       const resp = await apiFetch('/api/add-contact', {
@@ -3431,6 +3436,44 @@ async function deleteAccountRow(accountNumber, event) {
     init();
   } catch (e) {
     showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function draftContactEmail(accountNumber, contactEmail, contactName) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  if (!(acc.research || '').trim()) {
+    showToast('Run Execute/Refresh Research Summary first so OutboundRun has grounding.', 'err');
+    return;
+  }
+  if (!(acc.hypothesis || '').trim()) {
+    showToast('Run Execute/Refresh GTM first so OutboundRun knows the value hypothesis.', 'err');
+    return;
+  }
+  const who = contactName || contactEmail || 'contact';
+  showToast(`Drafting email for ${who}...`);
+  try {
+    const resp = await apiFetch('/api/draft-contact-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_number: accountNumber,
+        contact_email: contactEmail,
+        contact_name: contactName,
+      }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { contact } = await resp.json();
+    // Replace in local cache
+    const i = (acc.contacts || []).findIndex(x =>
+      (contactEmail && (x.email || '').toLowerCase() === contactEmail.toLowerCase()) ||
+      (contactName && x.name === contactName)
+    );
+    if (i !== -1) acc.contacts[i] = contact;
+    _reRenderAccount(accountNumber);
+    showToast(`Email drafted for ${who}`);
+  } catch (e) {
+    showToast('Draft failed: ' + (e.message || e), 'err');
   }
 }
 

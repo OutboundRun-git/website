@@ -222,6 +222,53 @@ FOCUS AREA: All {count} contacts must be specifically relevant to the product ar
 """
 
 
+SINGLE_CONTACT_EMAIL_PROMPT_TEMPLATE = """You are a sales writer helping a {user_role} at {company_name} draft a cold-outreach email to ONE specific target contact at {account_name}, a {industry_descriptor} account.
+
+ACCOUNT: {account_name}
+ACCOUNT NUMBER: {account_number}
+
+RESEARCH on this account (your sole grounding — do not invent facts not here):
+{research_html}
+
+GTM VALUE HYPOTHESIS for this account (connects {company_name}'s products to the account's situation):
+{hypothesis_html}
+
+TARGET CONTACT:
+- Name: {contact_name}
+- Title: {contact_title}
+- Email: {contact_email}
+- Existing hook (if the user wrote one): {contact_hook}
+
+YOUR TASK: Write a single, concise, high-quality outreach email to {contact_name} at {account_name}.
+
+Rules:
+- Ground every claim in the research or the GTM hypothesis above. Do NOT invent facts.
+- Open with a role-specific pain hook that would land for someone with the title "{contact_title}".
+- Reference ONE real, specific thing about {account_name} (from research) that explains WHY now.
+- Connect it to ONE specific {company_name} product capability (from the GTM hypothesis).
+- Close with a {cta_minutes}-minute call CTA.
+- Sign off exactly: [Your name]  (do NOT use the real user's name; the UI substitutes it).
+- 4-6 sentences in body. No em-dashes anywhere; use periods, commas, or colons.
+- Subject line: max 8 words, specific, no generic phrasing.
+- If research or hypothesis is thin, say so honestly in flag_reason; do NOT invent urgency.
+
+Return a JSON object with:
+- subject: cold email subject line
+- body: cold email body (plain text, newlines allowed, no HTML)
+- hook: 1-2 sentences explaining WHY this email works for this specific person — pain, timing signal, product fit. Written for the sender, not the recipient.
+- flag: "GREEN", "YELLOW", or "RED"
+  - GREEN: email is specific, grounded, and ready to send
+  - YELLOW: email is directionally right but has one soft spot (sparse research, generic hook, etc.)
+  - RED: there is not enough grounding; the sender should refine before sending
+- flag_reason: one sentence explaining the flag
+- flag_categories: array of zero or more applicable strings from this list: ["Verified accurate", "Title / role unverifiable from public sources", "Personal email domain (not corporate)", "Wrong / mismatched email domain", "No email address", "Former employee", "Generic / shared inbox or role placeholder contact", "Manually added"]
+- human_flag: "GREEN" or "YELLOW". Does the email read as written by a human, not AI?
+- human_reason: one sentence
+- exec_flag: "GREEN", "YELLOW", or "RED". Is it exec-appropriate (concise, outcome-led, peer tone, single CTA)?
+- exec_reason: one sentence
+"""
+
+
 BREADTH_ROLE_GUIDANCE = """
 Prioritize roles NOT already well-represented in the existing contact list. Look one level deeper or broader than what's already covered:
 1. If IT leadership is already covered, go to data/analytics roles
@@ -490,6 +537,21 @@ def build_gtm_prompt(cfg: dict, acc: dict) -> str:
         account_name=_q(acc.get('account_name')),
         account_number=_q(acc.get('account_number')),
         research_html=_q(acc.get('research', '')),
+        **ctx,
+    )
+
+
+def build_single_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> str:
+    ctx = prompt_context(cfg)
+    return INJECTION_PREAMBLE + SINGLE_CONTACT_EMAIL_PROMPT_TEMPLATE.format(
+        account_name=_q(acc.get('account_name')),
+        account_number=_q(acc.get('account_number')),
+        research_html=_q(acc.get('research', '')),
+        hypothesis_html=_q(acc.get('hypothesis', '')),
+        contact_name=_q(contact.get('name', '')),
+        contact_title=_q(contact.get('title', '')),
+        contact_email=_q(contact.get('email', '')),
+        contact_hook=_q(contact.get('hook', '')),
         **ctx,
     )
 
