@@ -280,7 +280,10 @@
 
 <header>
   <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
-    <h1 id="brand-title" style="margin:0;">OutboundRun</h1>
+    <h1 style="margin:0; display:flex; align-items:baseline; gap:8px;">
+      <span id="brand-title">OutboundRun</span>
+      <span id="brand-company-suffix" style="display:none; font-weight:400; font-size:0.65em; color:#8b949e; letter-spacing:0.02em;"></span>
+    </h1>
     <a id="platform-admin-link" href="/app/admin.html?tab=companies" title="Platform admin: manage every company + user" style="display:none; background:#21262d; border:1px solid #30363d; color:#a3c9ff; padding:4px 10px; border-radius:6px; font-size:11px; text-decoration:none;">⚙ Platform Admin</a>
   </div>
   <div class="meta" id="header-meta">Loading accounts...</div>
@@ -741,6 +744,12 @@
 
       const el = document.getElementById('auth-email');
       if (el) el.textContent = session.user.email;
+
+      const suffix = document.getElementById('brand-company-suffix');
+      if (suffix && window.COMPANY_NAME) {
+        suffix.textContent = `for ${window.COMPANY_NAME}`;
+        suffix.style.display = 'inline';
+      }
       // Platform Admin (top-left under logo): visible only to is_admin
       const platformLink = document.getElementById('platform-admin-link');
       if (platformLink && profile.is_admin) platformLink.style.display = 'inline-block';
