@@ -51,8 +51,10 @@ Return the research as HTML using ONLY these tags (no markdown):
 - <h3> for section headers (e.g. "Company Overview", "10-K / Financial Highlights", "Technology Stack", "Recent News & Initiatives")
 - <p> for paragraphs
 - <ul><li> for bullet lists
-- <sup class="cite">[N]</sup> inline after each specific fact that has a verifiable source
-- A <div class="footnotes"> at the very end with one <p> per citation: [N] Source title: URL or brief description
+- <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span> inline after EVERY specific fact that has a verifiable source. Both the citation number AND the source's publication / filing / last-updated date are REQUIRED on every sourced fact.
+- A <div class="footnotes"> at the very end with one <p> per citation in this exact format: <p>[N] Source name, YYYY-MM-DD: "Title or topic". URL</p>
+
+The date on the inline span is the publication, filing, or last-updated date of the cited source (e.g. earnings release date, 10-K filing date, article publish date). It is NOT today's date. If a source has no reliable published date, use the most specific defensible value ("2026-Q2", "undated"); do not guess a specific day.
 
 Be specific. Do not write generic statements that apply to any {industry_descriptor} company. If a fact cannot be sourced, omit it.
 
