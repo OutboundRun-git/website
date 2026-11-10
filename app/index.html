@@ -1246,6 +1246,7 @@ function buildContactsHeaderAction(acc) {
     </select>
     <input type="date" class="action-date" id="header-date-${acc.account_number}" style="display:none;width:auto" onchange="applyHeaderDate('${acc.account_number}', this.value)">
     <button class="send-all-btn" id="send-all-btn-${acc.account_number}" onclick="sendAllForAccount('${acc.account_number}')">Open All in Mail</button>
+    <button class="refresh-btn" onclick="openAddContact('${acc.account_number}')" title="Manually add a contact to this account">+ Add Contact</button>
     <button class="refresh-btn" id="find-more-btn-${acc.account_number}" onclick="toggleFindPanel('${acc.account_number}')">+ Find Contacts</button>
     <span id="send-all-status-${acc.account_number}" style="color:#8b949e;font-size:11px"></span>
   </span>`;
@@ -3315,6 +3316,20 @@ function openEditAccount(accountNumber) {
   document.getElementById('edit-overlay').classList.add('open');
 }
 
+function openAddContact(accountNumber) {
+  _editState().kind = 'add-contact';
+  _editState().accountNumber = accountNumber;
+  document.getElementById('edit-modal-title').textContent = 'Add contact';
+  document.getElementById('edit-modal-fields').innerHTML = `
+    <div class="edit-row"><label>Name</label><input type="text" id="ef-name" placeholder="Jane Doe"></div>
+    <div class="edit-row"><label>Title</label><input type="text" id="ef-title" placeholder="VP of Growth"></div>
+    <div class="edit-row"><label>Email (optional)</label><input type="email" id="ef-email" placeholder="jane@company.com"></div>
+    <div class="edit-row"><label>Mobile (optional)</label><input type="text" id="ef-mobile" placeholder="+1 555 555 5555"></div>
+    <div class="edit-row"><label>Hook (why this person, optional)</label><textarea id="ef-hook" placeholder="Why Jane is a good target — their role, likely pain points, timing signal"></textarea></div>
+  `;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
 function openEditContact(accountNumber, contactEmail, contactName) {
   const acc = allAccounts.find(a => a.account_number === accountNumber);
   if (!acc) return;
@@ -3376,6 +3391,25 @@ async function saveEdit() {
       });
       if (!resp.ok) throw new Error(await respError(resp));
       showToast('Contact updated');
+    } else if (state.kind === 'add-contact') {
+      const contact = {
+        name: document.getElementById('ef-name').value.trim(),
+        title: document.getElementById('ef-title').value.trim(),
+        email: document.getElementById('ef-email').value.trim(),
+        mobile: document.getElementById('ef-mobile').value.trim(),
+        hook: document.getElementById('ef-hook').value.trim(),
+      };
+      if (!contact.name) {
+        showToast('Name is required', 'err');
+        return;
+      }
+      const resp = await apiFetch('/api/add-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_number: state.accountNumber, contact }),
+      });
+      if (!resp.ok) throw new Error(await respError(resp));
+      showToast('Contact added');
     }
     closeEditModal();
     init();

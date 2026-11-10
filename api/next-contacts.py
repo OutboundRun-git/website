@@ -45,7 +45,9 @@ class handler(BaseHandler):
         if not isinstance(new_contacts, list):
             new_contacts = []
 
-        # Dedupe by email (case-insensitive). Empty emails do NOT collide.
+        # Dedupe by email (case-insensitive). When a contact has no email,
+        # also dedupe by name against other email-less contacts so a user-
+        # added contact without an email isn't rediscovered by the AI.
         data = dict(target['data'])
         existing = list(data.get('contacts') or [])
         existing_emails = {
@@ -53,15 +55,25 @@ class handler(BaseHandler):
             for c in existing
             if (c.get('email') or '').strip()
         }
+        existing_emailless_names = {
+            (c.get('name') or '').strip().lower()
+            for c in existing
+            if not (c.get('email') or '').strip() and (c.get('name') or '').strip()
+        }
         added: list[dict] = []
         for c in new_contacts:
             if not isinstance(c, dict):
                 continue
             email = (c.get('email') or '').lower().strip()
+            name  = (c.get('name')  or '').strip().lower()
             if email and email in existing_emails:
+                continue
+            if not email and name and name in existing_emailless_names:
                 continue
             if email:
                 existing_emails.add(email)
+            elif name:
+                existing_emailless_names.add(name)
             added.append(c)
 
         data['contacts'] = existing + added
