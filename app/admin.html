@@ -441,9 +441,15 @@
 
   function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-    document.getElementById('tab-companies').classList.toggle('hidden', name !== 'companies');
-    document.getElementById('tab-users').classList.toggle('hidden', name !== 'users');
-    document.getElementById('tab-config').classList.toggle('hidden', name !== 'config');
+    // Managers have tab-companies and tab-users removed from the DOM, so
+    // only toggle what's actually there.
+    const toggle = (id, hiddenWhen) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', hiddenWhen);
+    };
+    toggle('tab-companies', name !== 'companies');
+    toggle('tab-users',     name !== 'users');
+    toggle('tab-config',    name !== 'config');
     if (name === 'config') ensureCompanyConfigLoaded();
   }
   window.switchTab = switchTab;
