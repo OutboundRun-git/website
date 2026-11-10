@@ -588,24 +588,6 @@
     </div>
 
     <div class="setup-section">
-      <h3>Credible external sources</h3>
-      <p class="setup-hint">The trusted sources OutboundRun will pull research from. One per line.</p>
-      <div class="setup-row stack"><textarea id="cfg-credible-sources" rows="6" placeholder="SEC EDGAR (10-K, 10-Q filings)&#10;Company earnings-call transcripts&#10;Company website + press releases&#10;Bloomberg / Reuters / AP News&#10;Industry trade publications"></textarea></div>
-    </div>
-
-    <div class="setup-section">
-      <h3>Internal sources</h3>
-      <p class="setup-hint">Your own data OutboundRun should cross-reference for the value hypothesis. One per line.</p>
-      <div class="setup-row stack"><textarea id="cfg-internal-sources" rows="4" placeholder="Your CRM&#10;Past deal notes&#10;Marketing analytics"></textarea></div>
-    </div>
-
-    <div class="setup-section">
-      <h3>Contact-discovery sources</h3>
-      <p class="setup-hint">The tools your reps use to look up contact details. OutboundRun suggests which tool to use per contact.</p>
-      <div class="setup-row stack"><textarea id="cfg-contact-discovery" rows="4" placeholder="LinkedIn Sales Navigator&#10;ZoomInfo&#10;Apollo.io&#10;Public web research"></textarea></div>
-    </div>
-
-    <div class="setup-section">
       <h3>CRM integration</h3>
       <div class="setup-row"><label>Your CRM</label>
         <select id="cfg-crm-type">
@@ -2564,9 +2546,8 @@ function openSetup(firstRun) {
   document.getElementById('cfg-icp-descriptor').value  = icp.industry_descriptor || '';
 
   renderPersonaRows(cfg.personas || []);
-  document.getElementById('cfg-credible-sources').value = (cfg.credible_external_sources || []).join('\n');
-  document.getElementById('cfg-internal-sources').value = (cfg.internal_sources || []).join('\n');
-  document.getElementById('cfg-contact-discovery').value = (cfg.contact_discovery_sources || []).join('\n');
+  // credible_external_sources, internal_sources, contact_discovery_sources
+  // moved to Admin → Company Config; no DOM here anymore.
 
   // Only set fields that still exist in the DOM. Some were removed as the
   // wizard evolved (crm-roles, email-sender dropdown replaced by Gmail Connect).
@@ -2898,9 +2879,11 @@ async function saveSetup() {
         cares_about: r.querySelector('.pers-cares').value.trim(),
       }))
       .filter(p => p.name || p.title),
-    credible_external_sources: document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
-    internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
-    contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
+    // Source lists now live on companies.data (Admin → Company Config).
+    // Preserve any legacy user-level values so we don't accidentally clear them.
+    credible_external_sources: (currentConfig && currentConfig.credible_external_sources) || [],
+    internal_sources: (currentConfig && currentConfig.internal_sources) || [],
+    contact_discovery_sources: (currentConfig && currentConfig.contact_discovery_sources) || [],
     crm: {
       type: (document.getElementById('cfg-crm-type')?.value) || 'none',
       team_roles: (document.getElementById('cfg-crm-roles')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),

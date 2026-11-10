@@ -308,20 +308,31 @@ def _personas_detail(cfg: dict) -> str:
     return '\n'.join(out) or '(no personas configured; use general role-based inference)'
 
 
+def _source_list(cfg: dict, key: str) -> list[str]:
+    """Return the list under `key`, preferring company.data over user config.
+    Company-scoped sources (set in admin console) override the legacy per-user
+    config values so a single admin edit flows to every user in the company.
+    """
+    company = (cfg.get('_company_data') or {}).get(key)
+    if isinstance(company, list) and any((s or '').strip() for s in company):
+        return [s.strip() for s in company if s and s.strip()]
+    return [s.strip() for s in (cfg.get(key) or []) if s and s.strip()]
+
+
 def _credible_sources_list(cfg: dict) -> str:
-    sources = [s.strip() for s in (cfg.get('credible_external_sources') or []) if s and s.strip()]
+    sources = _source_list(cfg, 'credible_external_sources')
     if not sources:
         return '- Public web search (no specific credible sources configured)'
     return '\n'.join(f'- {s}' for s in sources)
 
 
 def _internal_sources_list(cfg: dict) -> str:
-    sources = [s.strip() for s in (cfg.get('internal_sources') or []) if s and s.strip()]
+    sources = _source_list(cfg, 'internal_sources')
     return ', '.join(sources) if sources else 'none configured'
 
 
 def _contact_discovery_list(cfg: dict) -> str:
-    sources = [s.strip() for s in (cfg.get('contact_discovery_sources') or []) if s and s.strip()]
+    sources = _source_list(cfg, 'contact_discovery_sources')
     if not sources:
         return '- Public web research (no contact-discovery tools configured)'
     return '\n'.join(f'- {s}' for s in sources)

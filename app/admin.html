@@ -212,6 +212,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="companies" onclick="switchTab('companies')">Companies</button>
     <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
+    <button class="tab" data-tab="config" onclick="switchTab('config')">Company Config</button>
   </div>
 
   <!-- ============ COMPANIES ============ -->
@@ -297,6 +298,43 @@
       </table>
     </div>
   </section>
+
+  <!-- ============ COMPANY CONFIG ============ -->
+  <section id="tab-config" class="hidden">
+    <div class="panel">
+      <h2>Company config</h2>
+      <p class="sub">Sources shared across every user in the selected company. Prompts (research, GTM hypothesis, contact discovery) pull from these when set; otherwise they fall back to each user's personal Settings.</p>
+      <div class="row">
+        <div class="field">
+          <label for="config-company">Company</label>
+          <select id="config-company" onchange="loadCompanyConfig()"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Credible external sources</h2>
+      <p class="sub">The trusted sources OutboundRun will pull research from. One per line.</p>
+      <textarea id="cfg-credible-sources" rows="6" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="SEC EDGAR (10-K, 10-Q filings)&#10;Company earnings-call transcripts&#10;Company website + press releases&#10;Bloomberg / Reuters / AP News&#10;Industry trade publications"></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>Internal sources</h2>
+      <p class="sub">Your own data OutboundRun cross-references for the value hypothesis. One per line.</p>
+      <textarea id="cfg-internal-sources" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Your CRM&#10;Past deal notes&#10;Marketing analytics"></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>Contact-discovery sources</h2>
+      <p class="sub">The tools reps use to look up contact details. OutboundRun recommends which tool to use per contact.</p>
+      <textarea id="cfg-contact-discovery" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="LinkedIn Sales Navigator&#10;ZoomInfo&#10;Apollo.io&#10;Public web research"></textarea>
+    </div>
+
+    <div class="panel" style="display:flex; justify-content:flex-end; gap:8px; align-items:center;">
+      <span id="config-save-status" style="color: var(--ink-mute); font-size:12px; margin-right:auto;"></span>
+      <button class="primary" onclick="saveCompanyConfig()">Save company config</button>
+    </div>
+  </section>
 </main>
 
 <script type="module">
@@ -378,8 +416,73 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     document.getElementById('tab-companies').classList.toggle('hidden', name !== 'companies');
     document.getElementById('tab-users').classList.toggle('hidden', name !== 'users');
+    document.getElementById('tab-config').classList.toggle('hidden', name !== 'config');
+    if (name === 'config') ensureCompanyConfigLoaded();
   }
   window.switchTab = switchTab;
+
+  let CONFIG_LOADED_COMPANY = null;
+
+  function ensureCompanyConfigLoaded() {
+    const select = document.getElementById('config-company');
+    if (!select) return;
+    if (select.options.length === 0 || select.options.length !== COMPANIES.length) {
+      select.innerHTML = COMPANIES.map(c =>
+        `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`
+      ).join('') || '<option value="">(no companies yet)</option>';
+    }
+    if (select.value && select.value !== CONFIG_LOADED_COMPANY) {
+      loadCompanyConfig();
+    } else if (!CONFIG_LOADED_COMPANY && select.value) {
+      loadCompanyConfig();
+    }
+  }
+
+  async function loadCompanyConfig() {
+    const select = document.getElementById('config-company');
+    const cid = select ? select.value : '';
+    if (!cid) return;
+    const statusEl = document.getElementById('config-save-status');
+    if (statusEl) { statusEl.textContent = 'Loading...'; statusEl.style.color = 'var(--ink-mute)'; }
+    try {
+      const r = await apiFetch(`/api/get-company-data?company_id=${encodeURIComponent(cid)}`);
+      if (!r.ok) throw new Error(await respError(r));
+      const j = await r.json();
+      const d = j.data || {};
+      document.getElementById('cfg-credible-sources').value = (d.credible_external_sources || []).join('\n');
+      document.getElementById('cfg-internal-sources').value = (d.internal_sources || []).join('\n');
+      document.getElementById('cfg-contact-discovery').value = (d.contact_discovery_sources || []).join('\n');
+      CONFIG_LOADED_COMPANY = cid;
+      if (statusEl) statusEl.textContent = '';
+    } catch (e) {
+      if (statusEl) { statusEl.textContent = 'Load failed: ' + (e.message || e); statusEl.style.color = '#ff9b96'; }
+    }
+  }
+  window.loadCompanyConfig = loadCompanyConfig;
+
+  async function saveCompanyConfig() {
+    const cid = document.getElementById('config-company').value;
+    if (!cid) { toast('Pick a company first', 'error'); return; }
+    const statusEl = document.getElementById('config-save-status');
+    const payload = {
+      company_id: cid,
+      data: {
+        credible_external_sources: document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+        internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+        contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
+      },
+    };
+    if (statusEl) { statusEl.textContent = 'Saving...'; statusEl.style.color = 'var(--ink-mute)'; }
+    try {
+      const r = await apiFetch('/api/update-company-data', { method: 'POST', body: payload });
+      if (!r.ok) throw new Error(await respError(r));
+      if (statusEl) { statusEl.textContent = 'Saved'; statusEl.style.color = '#6ecf7c'; }
+      toast('Company config saved', 'success');
+    } catch (e) {
+      if (statusEl) { statusEl.textContent = 'Save failed: ' + (e.message || e); statusEl.style.color = '#ff9b96'; }
+    }
+  }
+  window.saveCompanyConfig = saveCompanyConfig;
 
   let COMPANIES = [];
   let USERS = [];

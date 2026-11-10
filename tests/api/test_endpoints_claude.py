@@ -30,8 +30,11 @@ def _configure_db_for_claude_endpoint(mock_db, acc_row=ACC_ROW, config=None):
     # start_job insert -> return [{id: 'job-1'}]
     # upsert_account_data update -> return [{id: 'row-1'}] (success)
     # finish_job update -> return []
+    # load_prompt_context adds one profiles query after get_config. We stub
+    # company_id=None so the companies query is skipped.
     calls = iter([
         _chain(final_data=[{'data': config}]),        # get_config
+        _chain(final_data=[{'company_id': None}]),    # _get_user_company_id
         _chain(final_data=[acc_row]),                 # get_account_by_number
         _chain(final_data=[{'id': 'job-1'}]),         # start_job insert
         _chain(final_data=[{'id': 'row-1'}]),         # upsert_account_data
@@ -63,7 +66,11 @@ class TestRefreshEndpoint:
 
     def test_unknown_account_returns_404(self, make_handler, mock_db, authed_user_id):
         # config found, account not found
-        calls = iter([_chain(final_data=[{'data': {}}]), _chain(final_data=[])])
+        calls = iter([
+            _chain(final_data=[{'data': {}}]),
+            _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
+            _chain(final_data=[]),
+        ])
         mock_db.table.side_effect = lambda *a, **kw: next(calls)
         h = make_handler(self.mod.handler, body={'account_number': 'ACC-999'})
         h.do_POST()
@@ -72,6 +79,7 @@ class TestRefreshEndpoint:
     def test_claude_failure_returns_502(self, make_handler, mock_db, authed_user_id, mocker):
         calls = iter([
             _chain(final_data=[{'data': {}}]),
+            _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
             _chain(final_data=[ACC_ROW]),
             _chain(final_data=[{'id': 'job-1'}]),
             _chain(final_data=[]),  # fail_job update
@@ -104,6 +112,7 @@ class TestRefreshResearchEndpoint:
     def test_empty_result_returns_502(self, make_handler, mock_db, authed_user_id, mocker):
         calls = iter([
             _chain(final_data=[{'data': {}}]),
+            _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
             _chain(final_data=[ACC_ROW]),
             _chain(final_data=[{'id': 'job-1'}]),
             _chain(final_data=[]),
@@ -139,6 +148,7 @@ class TestRefreshGtmEndpoint:
         # account with empty research
         calls = iter([
             _chain(final_data=[{'data': {}}]),
+            _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
             _chain(final_data=[ACC_ROW]),  # research is '' in ACC_ROW
         ])
         mock_db.table.side_effect = lambda *a, **kw: next(calls)

@@ -155,3 +155,57 @@ class TestProductSubsetFiltering:
     def test_subset_is_stripped(self):
         cfg = _cfg_with([{'name': 'A'}, {'name': 'B'}], selected=['  A  '])
         assert _products_list(cfg) == 'A'
+
+
+# ============================================================================
+# Phase 1: company-scoped source lists (_company_data overrides user config)
+# ============================================================================
+
+from api._lib.prompts import _credible_sources_list, _internal_sources_list, _contact_discovery_list
+
+
+class TestCompanyScopedSources:
+    def test_company_credible_overrides_user(self):
+        cfg = {
+            'credible_external_sources': ['UserSrc'],
+            '_company_data': {'credible_external_sources': ['CompanySrc']},
+        }
+        out = _credible_sources_list(cfg)
+        assert 'CompanySrc' in out
+        assert 'UserSrc' not in out
+
+    def test_empty_company_list_falls_back_to_user(self):
+        cfg = {
+            'credible_external_sources': ['UserSrc'],
+            '_company_data': {'credible_external_sources': []},
+        }
+        out = _credible_sources_list(cfg)
+        assert 'UserSrc' in out
+
+    def test_missing_company_key_falls_back_to_user(self):
+        cfg = {
+            'internal_sources': ['UserCRM'],
+            '_company_data': {'credible_external_sources': ['Other']},
+        }
+        out = _internal_sources_list(cfg)
+        assert 'UserCRM' in out
+
+    def test_no_company_data_uses_user_only(self):
+        cfg = {'contact_discovery_sources': ['Apollo']}
+        out = _contact_discovery_list(cfg)
+        assert 'Apollo' in out
+
+    def test_both_empty_renders_fallback_text(self):
+        cfg = {}
+        assert 'Public web search' in _credible_sources_list(cfg)
+        assert 'none configured' in _internal_sources_list(cfg)
+        assert 'Public web research' in _contact_discovery_list(cfg)
+
+    def test_whitespace_only_entries_ignored_in_company_list(self):
+        cfg = {
+            '_company_data': {'credible_external_sources': ['', '   ', 'Real']},
+            'credible_external_sources': ['UserFallback'],
+        }
+        out = _credible_sources_list(cfg)
+        assert 'Real' in out
+        assert 'UserFallback' not in out

@@ -19,7 +19,7 @@ class handler(BaseHandler):
         if not acc_num:
             raise HttpError(400, 'account_number is required')
 
-        cfg = repo.get_config(user_id)
+        cfg = repo.load_prompt_context(user_id)
         target = repo.get_account_by_number(user_id, acc_num)
         if not target:
             raise HttpError(404, f'Account {acc_num} not found')

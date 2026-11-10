@@ -29,10 +29,65 @@ def get_config(user_id: str) -> dict:
 
 
 def save_config(user_id: str, cfg: dict) -> None:
+    # Never persist the ephemeral `_company_data` back onto the user row.
+    clean = {k: v for k, v in cfg.items() if k != '_company_data'}
     get_db().table('configs').upsert(
-        {'user_id': user_id, 'data': cfg},
+        {'user_id': user_id, 'data': clean},
         on_conflict='user_id',
     ).execute()
+
+
+def load_prompt_context(user_id: str) -> dict:
+    """Returns the user's config MERGED with their company's shared sources.
+    Use this in endpoints that build prompts; prefer get_config for simple
+    settings-screen read/write.
+
+    Soft-fails on the company lookup: if the profile or companies query errors
+    (bad test mocks, RLS edge, deleted company), returns the plain user cfg
+    rather than taking down the research path."""
+    cfg = get_config(user_id)
+    try:
+        cid = _get_user_company_id(user_id)
+        if cid:
+            cfg['_company_data'] = get_company_data(cid)
+    except Exception:
+        pass
+    return cfg
+
+
+def _get_user_company_id(user_id: str) -> str | None:
+    resp = (get_db().table('profiles')
+        .select('company_id')
+        .eq('id', user_id)
+        .limit(1)
+        .execute())
+    rows = resp.data or []
+    return rows[0].get('company_id') if rows else None
+
+
+def get_company_data(company_id: str) -> dict:
+    resp = (get_db().table('companies')
+        .select('data')
+        .eq('id', company_id)
+        .limit(1)
+        .execute())
+    rows = resp.data or []
+    return (rows[0].get('data') or {}) if rows else {}
+
+
+def update_company_data(company_id: str, data: dict) -> None:
+    get_db().table('companies').update({'data': data}).eq('id', company_id).execute()
+
+
+def get_user_profile_full(user_id: str) -> dict | None:
+    """is_admin, company_id, role — used to gate company-data endpoints."""
+    resp = (get_db().table('profiles')
+        .select('is_admin, company_id, role')
+        .eq('id', user_id)
+        .limit(1)
+        .execute())
+    rows = resp.data or []
+    return rows[0] if rows else None
 
 
 # ============================================================================

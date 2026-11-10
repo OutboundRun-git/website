@@ -27,7 +27,7 @@ class handler(BaseHandler):
         if count < 1 or count > 20:
             raise HttpError(400, 'count must be between 1 and 20')
 
-        cfg = repo.get_config(user_id)
+        cfg = repo.load_prompt_context(user_id)
         target = repo.get_account_by_number(user_id, acc_num)
         if not target:
             raise HttpError(404, f'Account {acc_num} not found')
