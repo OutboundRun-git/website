@@ -305,6 +305,7 @@
   <button onclick="selectVisible()">Select All Visible</button>
   <button onclick="clearSelection()">Clear Selection</button>
   <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
+  <button onclick="deleteAllAccounts()" title="Delete every account" style="color:#ff9b96;">🗑 Delete All</button>
   <button onclick="downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
   <button onclick="openSetup()" title="Configure your identity, company, products, and ICP">⚙ Settings</button>
   <button onclick="openHelp()" title="Help + keyboard shortcuts (or press ?)">?</button>
@@ -535,6 +536,7 @@
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button type="button" class="setup-add-btn" onclick="addProductRow()">+ Add product</button>
           <button type="button" class="setup-add-btn" onclick="document.getElementById('products-csv-file').click()">⬆ Upload CSV</button>
+          <button type="button" class="setup-add-btn" style="color:#ff9b96;" onclick="deleteAllProducts()">🗑 Delete All</button>
           <input type="file" id="products-csv-file" accept=".csv,text/csv" style="display:none" onchange="onProductsCsvPicked(event)">
           <span id="products-csv-status" style="font-size:12px; color:#8b949e;"></span>
         </div>
@@ -2561,6 +2563,55 @@ function buildProductRow(name, desc) {
 
 function addProductRow() {
   document.getElementById('cfg-products').appendChild(buildProductRow('', ''));
+}
+
+async function deleteAllAccounts() {
+  const count = (allAccounts || []).length;
+  if (count === 0) { showToast('No accounts to delete', 'info'); return; }
+  const confirmed = window.confirm(
+    `Delete all ${count} accounts and their contacts / research / drafts?\n\nThis cannot be undone.`
+  );
+  if (!confirmed) return;
+  try {
+    const resp = await apiFetch('/api/delete-all-accounts', { method: 'POST' });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const j = await resp.json();
+    showToast(`Deleted ${j.deleted} accounts`, 'ok');
+    allAccounts = [];
+    renderAccounts([]);
+    updateStats();
+  } catch (e) {
+    showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function deleteAllProducts() {
+  const host = document.getElementById('cfg-products');
+  const rowCount = host.querySelectorAll('.setup-product-row').length;
+  if (rowCount === 0) return;
+  const confirmed = window.confirm(
+    `Delete all ${rowCount} products from your catalog?\n\nThis saves immediately and cannot be undone.`
+  );
+  if (!confirmed) return;
+  const statusEl = document.getElementById('products-csv-status');
+  try {
+    const resp = await apiFetch('/api/delete-all-products', { method: 'POST' });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const j = await resp.json();
+    host.innerHTML = '';
+    host.appendChild(buildProductRow('', ''));
+    if (statusEl) {
+      statusEl.textContent = `Deleted ${j.deleted} products.`;
+      statusEl.style.color = '#8b949e';
+    }
+    showToast(`Deleted ${j.deleted} products`, 'ok');
+  } catch (e) {
+    if (statusEl) {
+      statusEl.textContent = 'Delete failed: ' + (e.message || e);
+      statusEl.style.color = '#f85149';
+    }
+    showToast('Delete failed', 'err');
+  }
 }
 
 function _parseProductsCsv(text) {
