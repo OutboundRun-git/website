@@ -361,18 +361,33 @@
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { window.location.replace('/login/'); throw new Error('no session'); }
 
-  // Admin gate — non-admins are bounced back to the app (which will show them
-  // the company-pending screen if they don't have a company_id).
+  // Two-tier gate: platform admins see all tabs; company managers see
+  // only the Company Config tab. Anyone else bounces.
   const { data: profile } = await supabase
-    .from('profiles').select('is_admin').eq('id', session.user.id).single();
-  if (!profile || !profile.is_admin) {
+    .from('profiles').select('is_admin, role, company_id').eq('id', session.user.id).single();
+  const isAdmin   = !!(profile && profile.is_admin);
+  const isManager = !!(profile && profile.role === 'manager' && profile.company_id);
+  if (!profile || !(isAdmin || isManager)) {
     window.location.replace('/app/');
-    throw new Error('not admin');
+    throw new Error('not admin or manager');
   }
 
   window.SUPABASE = supabase;
   window.AUTH_TOKEN = session.access_token;
+  window.ADMIN_IS_PLATFORM = isAdmin;
   document.getElementById('auth-email').textContent = session.user.email;
+
+  if (!isAdmin) {
+    // Manager-only view: hide platform-admin tabs + their panels
+    document.querySelectorAll('[data-tab="companies"], [data-tab="users"]').forEach(el => el.remove());
+    const companiesPanel = document.getElementById('tab-companies');
+    const usersPanel = document.getElementById('tab-users');
+    if (companiesPanel) companiesPanel.remove();
+    if (usersPanel) usersPanel.remove();
+    // Also drop the top-of-page "Admin" label so it reads correctly
+    const title = document.querySelector('header h1');
+    if (title) title.textContent = title.textContent.replace('Admin', 'Company Admin');
+  }
 
   window.signOut = async () => {
     await supabase.auth.signOut();
@@ -759,13 +774,17 @@
 
   document.addEventListener('admin-ready', async () => {
     await loadCompanies();
-    await loadUsers();
-    // Honor ?tab=<name> deep-link (companies | users | config)
+    if (window.ADMIN_IS_PLATFORM) await loadUsers();
+
     const params = new URLSearchParams(window.location.search);
     const requested = params.get('tab');
-    if (requested && ['companies', 'users', 'config'].includes(requested)) {
-      switchTab(requested);
-    }
+    const allowed = window.ADMIN_IS_PLATFORM
+      ? ['companies', 'users', 'config']
+      : ['config'];
+    const target = allowed.includes(requested) ? requested
+                 : window.ADMIN_IS_PLATFORM ? 'companies'
+                 : 'config';
+    switchTab(target);
   });
 </script>
 

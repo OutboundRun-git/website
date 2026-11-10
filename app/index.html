@@ -753,11 +753,12 @@
       // Platform Admin (top-left under logo): visible only to is_admin
       const platformLink = document.getElementById('platform-admin-link');
       if (platformLink && profile.is_admin) platformLink.style.display = 'inline-block';
-      // Company Admin (top-right next to Sign out): visible to platform admins only
-      // for now. Managers will get access once admin.html gates by role rather than
-      // require_admin (see project_outboundrun_company_scoped_products_plan Phase 1b).
+      // Company Admin (top-right next to Sign out): platform admins AND
+      // company managers. admin.html hides the Companies/Users tabs for
+      // non-platform-admins and defaults them to the Company Config tab.
       const companyLink = document.getElementById('company-admin-link');
-      if (companyLink && profile.is_admin) companyLink.style.display = 'inline-block';
+      const isCompanyAdmin = profile.is_admin || (profile.role === 'manager' && profile.company_id);
+      if (companyLink && isCompanyAdmin) companyLink.style.display = 'inline-block';
       // Kick off the app once auth is ready
       document.dispatchEvent(new Event('auth-ready'));
     }
