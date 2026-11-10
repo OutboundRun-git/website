@@ -258,6 +258,22 @@
   .fep-save:hover { background: #2ea043; }
   .fep-cancel { background: #21262d; color: #8b949e; }
   .fep-cancel:hover { background: #30363d; color: #e1e4e8; }
+  .tools-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #e1e4e8;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .tools-menu-item:hover { background: #30363d; }
+  .tools-menu-item.tools-menu-danger { color: #ff9b96; }
+  .tools-menu-item.tools-menu-danger:hover { background: #3d1a1a; }
 </style>
 </head>
 <body>
@@ -267,6 +283,17 @@
   <div class="meta" id="header-meta">Loading accounts...</div>
   <div class="auth-block" style="display:flex; align-items:center; gap:12px; margin-left:auto;">
     <span id="auth-email" style="font-size:12px; color:#8b949e"></span>
+    <div class="tools-menu" style="position:relative;">
+      <button id="tools-menu-btn" onclick="toggleToolsMenu(event)" title="Tools" style="background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">Tools ▾</button>
+      <div id="tools-menu-panel" style="display:none; position:absolute; top:100%; right:0; margin-top:6px; min-width:200px; background:#161b22; border:1px solid #30363d; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.4); padding:4px; z-index:1000;">
+        <button class="tools-menu-item" onclick="closeToolsMenu(); showView('report')" title="Chronological log of outreach activity">📋 Activity Report</button>
+        <button class="tools-menu-item" onclick="closeToolsMenu(); openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
+        <button class="tools-menu-item" onclick="closeToolsMenu(); downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
+        <button class="tools-menu-item" onclick="closeToolsMenu(); openSetup()" title="Configure identity, company, products, ICP">⚙ Settings</button>
+        <hr style="border:none; border-top:1px solid #30363d; margin:4px 0;">
+        <button class="tools-menu-item tools-menu-danger" onclick="closeToolsMenu(); deleteAllAccounts()" title="Delete every account">🗑 Delete All Accounts</button>
+      </div>
+    </div>
     <a id="admin-link" href="/app/admin.html" style="display:none; background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; font-size:12px; text-decoration:none;">Admin</a>
     <button id="auth-signout" onclick="signOut()" style="background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">Sign out</button>
   </div>
@@ -297,17 +324,12 @@
 
 <div class="controls">
   <button onclick="showView('accounts')" title="Main view: list of target accounts with research, hypotheses, and drafted outreach">Accounts</button>
-  <button onclick="showView('report')" title="Chronological log of outreach activity (emailed / texted / called) grouped by date and account">Activity Report</button>
   <button onclick="expandAll()" title="Open every account row to show its contacts, research, and GTM hypothesis">Expand All</button>
   <button onclick="collapseAll()" title="Close every open account row">Collapse All</button>
   <button onclick="selectByFlag('GREEN')" title="Select every contact whose draft email passed quality checks (safe to send as-is)">Select All Green</button>
   <button onclick="selectByFlag('YELLOW')" title="Select every contact whose draft has minor warnings (review before sending)">Select All Yellow</button>
   <button onclick="selectVisible()" title="Select every contact currently visible on screen (respects filters)">Select All Visible</button>
   <button onclick="clearSelection()" title="Unselect all currently selected contacts">Clear Selection</button>
-  <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
-  <button onclick="deleteAllAccounts()" title="Delete every account" style="color:#ff9b96;">🗑 Delete All</button>
-  <button onclick="downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
-  <button onclick="openSetup()" title="Configure your identity, company, products, and ICP">⚙ Settings</button>
   <button onclick="openHelp()" title="Help + keyboard shortcuts (or press ?)">?</button>
   <span class="stats" id="stats-bar"></span>
 </div>
@@ -2592,6 +2614,28 @@ function buildProductRow(name, desc, selected = true) {
 function addProductRow() {
   document.getElementById('cfg-products').appendChild(buildProductRow('', '', true));
 }
+
+function toggleToolsMenu(event) {
+  if (event) event.stopPropagation();
+  const panel = document.getElementById('tools-menu-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'block';
+  panel.style.display = isOpen ? 'none' : 'block';
+}
+
+function closeToolsMenu() {
+  const panel = document.getElementById('tools-menu-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('tools-menu-panel');
+  const btn = document.getElementById('tools-menu-btn');
+  if (!panel || !btn) return;
+  if (panel.style.display === 'block' && !panel.contains(e.target) && e.target !== btn) {
+    panel.style.display = 'none';
+  }
+});
 
 let selectedAccountNumbers = new Set();
 
