@@ -626,6 +626,8 @@
 
   function renderCompaniesTable() {
     const tb = document.getElementById('companies-tbody');
+    // Manager-only view has this panel removed from the DOM.
+    if (!tb) return;
     if (!COMPANIES.length) {
       tb.innerHTML = '<tr><td colspan="5" class="empty">No companies yet. Create the first one above.</td></tr>';
       return;
@@ -643,6 +645,8 @@
 
   function renderInviteCompanySelect() {
     const sel = document.getElementById('invite-company');
+    // Manager-only view has this panel removed from the DOM.
+    if (!sel) return;
     if (!COMPANIES.length) {
       sel.innerHTML = '<option value="">— no companies yet —</option>';
       return;

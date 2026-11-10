@@ -2511,9 +2511,9 @@ async function bootstrap() {
     updateBrand(currentConfig);
     paintGmailConnectionBox();
     checkGmailUrlParams();
-    if (!data.complete) {
-      openSetup(true);  // force first-run wizard
-    }
+    // First-run wizard no longer auto-opens. Users can hit Tools → Settings
+    // when they want to configure. (Company-wide config lives on the Company
+    // Admin page.)
   } catch (e) {
     console.error('bootstrap failed:', e);
   }
