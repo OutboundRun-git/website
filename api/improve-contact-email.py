@@ -55,8 +55,21 @@ class handler(BaseHandler):
         if not ((contact.get('subject') or '').strip() or (contact.get('body') or '').strip()):
             raise HttpError(400, 'No draft to improve yet. Click Draft first.')
 
+        # Apply UI-side flag overrides so Improve reasons from the user's
+        # assessment, not the stored AI assessment. Overrides are not persisted
+        # back to the row; the next grading pass fills in canonical values.
+        overrides = body.get('overrides') or {}
+        contact_for_prompt = dict(contact)
+        if isinstance(overrides, dict):
+            for k in ('flag', 'flag_reason',
+                      'human_flag', 'human_reason',
+                      'exec_flag', 'exec_reason'):
+                v = overrides.get(k)
+                if isinstance(v, str) and v.strip():
+                    contact_for_prompt[k] = v.strip()
+
         cfg = repo.load_prompt_context(user_id)
-        prompt = build_improve_contact_email_prompt(cfg, data, contact)
+        prompt = build_improve_contact_email_prompt(cfg, data, contact_for_prompt)
         try:
             result = run_claude_json(prompt)
         except ClaudeError as e:

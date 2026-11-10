@@ -1302,11 +1302,10 @@ function buildContactsTable(acc) {
     const rescoreBtn = (hasEmail && hasDraft)
       ? ` <button class="row-action" title="Re-score Flag / Human? / Exec? based on the current draft text" onclick="rescoreContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#58a6ff;">🔄 Re-score</button>`
       : '';
-    const flagsAreMixed = hasDraft && [
-      (c.flag || '').toUpperCase(),
-      (c.human_flag || '').toUpperCase(),
-      (c.exec_flag || '').toUpperCase(),
-    ].some(v => v === 'YELLOW' || v === 'RED');
+    const effFlag  = (flagOverrides[key + '_flag']  || c.flag        || '').toUpperCase();
+    const effHuman = (flagOverrides[key + '_human'] || c.human_flag  || '').toUpperCase();
+    const effExec  = (flagOverrides[key + '_exec']  || c.exec_flag   || '').toUpperCase();
+    const flagsAreMixed = hasDraft && [effFlag, effHuman, effExec].some(v => v === 'YELLOW' || v === 'RED');
     const improveBtn = (hasEmail && flagsAreMixed)
       ? ` <button class="row-action" title="Rewrite the draft to fix the issues behind the YELLOW / RED flags" onclick="improveContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#f9c784;">✨ Improve</button>`
       : '';
@@ -1328,12 +1327,9 @@ function buildContactsTable(acc) {
       </select>
       ${dateField}
     </div>`;
-    const flagOverride = flagOverrides[key + '_flag'];
-    const humanOverride = flagOverrides[key + '_human'];
-    const execOverride  = flagOverrides[key + '_exec'];
-    const flagCell  = buildFlagCell(key, 'flag',  flagOverride  || c.flag,       c.flag,       escJs(JSON.stringify(c.flag_categories || (c.flag_category ? [c.flag_category] : []))), escJs(c.flag_reason  || ''), escJs(c.human_reason || ''), 'Flag');
-    const humanCell = buildFlagCell(key, 'human', humanOverride || c.human_flag, c.human_flag, null, escJs(c.human_reason || ''), '', 'Human?');
-    const execCell  = buildFlagCell(key, 'exec',  execOverride  || c.exec_flag,  c.exec_flag,  null, escJs(c.exec_reason  || ''), '', 'Exec?');
+    const flagCell  = buildFlagCell(key, 'flag',  effFlag  || c.flag,       c.flag,       escJs(JSON.stringify(c.flag_categories || (c.flag_category ? [c.flag_category] : []))), escJs(c.flag_reason  || ''), escJs(c.human_reason || ''), 'Flag');
+    const humanCell = buildFlagCell(key, 'human', effHuman || c.human_flag, c.human_flag, null, escJs(c.human_reason || ''), '', 'Human?');
+    const execCell  = buildFlagCell(key, 'exec',  effExec  || c.exec_flag,  c.exec_flag,  null, escJs(c.exec_reason  || ''), '', 'Exec?');
     const checkboxCell = hasEmail
       ? `<td class="check-col"><input type="checkbox" class="email-checkbox" data-key="${key}" data-account="${acc.account_number}" data-name="${escJs(c.name)}" data-email="${escJs(c.email)}" data-subject="${escJs(c.subject)}" data-body="${escJs(c.body)}" ${isSelected ? 'checked' : ''} onchange="toggleCheckbox(this)"></td>`
       : `<td class="check-col"></td>`;
@@ -3479,6 +3475,18 @@ async function improveContactEmail(accountNumber, contactEmail, contactName) {
   if (!acc) return;
   const who = contactName || contactEmail || 'contact';
   showToast(`Improving draft for ${who}... (addresses current flag reasons)`);
+  const overrideKey = `${accountNumber}_${contactEmail}`;
+  const overrides = {};
+  const addOverride = (type, flagField, reasonField) => {
+    const v = flagOverrides[`${overrideKey}_${type}`];
+    if (!v) return;
+    overrides[flagField] = v;
+    const comment = flagOverrideComments[`${overrideKey}_${type}`];
+    if (comment) overrides[reasonField] = comment;
+  };
+  addOverride('flag',  'flag',       'flag_reason');
+  addOverride('human', 'human_flag', 'human_reason');
+  addOverride('exec',  'exec_flag',  'exec_reason');
   try {
     const resp = await apiFetch('/api/improve-contact-email', {
       method: 'POST',
@@ -3487,6 +3495,7 @@ async function improveContactEmail(accountNumber, contactEmail, contactName) {
         account_number: accountNumber,
         contact_email: contactEmail,
         contact_name: contactName,
+        overrides,
       }),
     });
     if (!resp.ok) throw new Error(await respError(resp));
