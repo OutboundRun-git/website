@@ -38,6 +38,11 @@ class handler(BaseHandler):
 
     @endpoint
     def do_POST(self, user_id: str):
-        cfg = self._body()
+        body = self._body()
+        # Frontend sends {"config": <cfg>}. Tolerate the raw cfg shape too
+        # so legacy callers / direct API users don't break.
+        cfg = body.get('config') if isinstance(body, dict) and 'config' in body else body
+        if not isinstance(cfg, dict):
+            cfg = {}
         repo.save_config(user_id, cfg)
         self._ok({'saved': True, 'complete': _is_complete(cfg)})

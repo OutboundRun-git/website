@@ -25,7 +25,16 @@ def get_config(user_id: str) -> dict:
     rows = resp.data or []
     if not rows:
         return {}
-    return rows[0].get('data') or {}
+    data = rows[0].get('data') or {}
+    # Unwrap legacy double-nested shape caused by a pre-v2.9.2 POST bug
+    # where the entire {"config": <cfg>} wrapper was saved as the config.
+    while (
+        isinstance(data, dict)
+        and set(data.keys()) == {'config'}
+        and isinstance(data.get('config'), dict)
+    ):
+        data = data['config']
+    return data if isinstance(data, dict) else {}
 
 
 def save_config(user_id: str, cfg: dict) -> None:
