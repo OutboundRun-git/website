@@ -85,7 +85,7 @@ Rules:
 - Connects to a specific product value prop from the list above
 - Closes with a single low-friction CTA ({cta_minutes}-minute call)
 - Do NOT mention "{company_name}" generically. Reference specific products or capabilities.
-- Sign off: [Your name] (the sender will personalize)
+- Sign off with exactly this first name on its own line: {user_first_name}
 - NO subject prefixes like "Re:" or "Fwd:"
 - Do NOT use em-dashes anywhere in the output. Use periods, commas, or colons instead.
 
@@ -200,7 +200,7 @@ From all contacts found across CRM and web research, select the {count} BEST tar
 - name, title, email (best guess from company domain if not found; format as firstname.lastname@domain.com), mobile ("Not found" if unavailable)
 - hook: 2-3 sentence explanation of why THIS person at THIS account, what their pain likely is, and why they are a good target for {company_name}
 - subject: specific cold email subject line, max 8 words, no generic phrasing
-- body: 4-6 sentence personalized cold email body from {user_full_name} ({user_role} at {company_name}). Opens with a role-specific pain hook. References something real about {account_name}. Connects to a specific product capability. Closes with a {cta_minutes}-minute call CTA. Sign off: [Your name]. No subject prefixes. Do NOT use em-dashes; use periods, commas, or colons instead.
+- body: 4-6 sentence personalized cold email body from {user_full_name} ({user_role} at {company_name}). Opens with a role-specific pain hook. References something real about {account_name}. Connects to a specific product capability. Closes with a {cta_minutes}-minute call CTA. Sign off with exactly this first name on its own line: {user_first_name}. No subject prefixes. Do NOT use em-dashes; use periods, commas, or colons instead.
 - flag: "GREEN", "YELLOW", or "RED"
   - GREEN: email looks deliverable and contact is verifiable
   - YELLOW: contact or email is partially unverifiable but plausible
@@ -258,7 +258,7 @@ Every claim must still be grounded in the Research or GTM above. Do not invent f
 
 Return a JSON object with:
 - subject: new subject line, max 8 words, specific
-- body: new body, plain text, 4-6 sentences, no HTML, no em-dashes, signs off as "[Your name]"
+- body: new body, plain text, 4-6 sentences, no HTML, no em-dashes, signs off with exactly this first name on its own line: {user_first_name}
 - hook: 1-2 sentences for the sender explaining why the rewrite works for this specific person
 - flag: predicted "GREEN" | "YELLOW" | "RED" (be honest; if still thin, say YELLOW with reason)
 - flag_reason: one sentence
@@ -331,7 +331,7 @@ Rules:
 - Reference ONE real, specific thing about {account_name} (from research) that explains WHY now.
 - Connect it to ONE specific {company_name} product capability (from the GTM hypothesis).
 - Close with a {cta_minutes}-minute call CTA.
-- Sign off exactly: [Your name]  (do NOT use the real user's name; the UI substitutes it).
+- Sign off with exactly this first name on its own line: {user_first_name}
 - 4-6 sentences in body. No em-dashes anywhere; use periods, commas, or colons.
 - Subject line: max 8 words, specific, no generic phrasing.
 - If research or hypothesis is thin, say so honestly in flag_reason; do NOT invent urgency.
@@ -550,9 +550,12 @@ def _crm_id_line(cfg: dict, acc: dict) -> str:
 
 def prompt_context(cfg: dict) -> dict:
     """Shared config-derived template variables."""
+    full_name = (cfg.get('user', {}).get('full_name') or '').strip()
+    first_name = full_name.split()[0] if full_name else ''
     return {
         'company_name': cfg.get('company', {}).get('name') or '(company)',
-        'user_full_name': cfg.get('user', {}).get('full_name') or '(user)',
+        'user_full_name': full_name or '(user)',
+        'user_first_name': first_name or '(user)',
         'user_role': cfg.get('user', {}).get('role_title') or 'Account Executive',
         'industry_descriptor': (
             cfg.get('icp', {}).get('industry_descriptor')
@@ -658,6 +661,7 @@ def build_improve_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> s
         current_exec_flag=_q(contact.get('exec_flag', '')),
         current_exec_reason=_q(contact.get('exec_reason', '')),
         user_role=ctx['user_role'],
+        user_first_name=ctx['user_first_name'],
         company_name=ctx['company_name'],
         industry_descriptor=ctx.get('industry_descriptor', ''),
     )
