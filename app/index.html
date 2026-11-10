@@ -2527,7 +2527,7 @@ function updateBrand(cfg) {
 }
 
 // ─── Setup / Settings modal ────────────────────────────────────────────────
-function openSetup(firstRun) {
+async function openSetup(firstRun) {
   const cfg = currentConfig || {};
   const u = cfg.user || {};
   const c = cfg.company || {};
@@ -2540,14 +2540,16 @@ function openSetup(firstRun) {
     ? 'A quick one-time setup so outreach reflects you and your company. Everything is stored locally in config.json.'
     : 'Update your identity, company, products, ICP, or CRM configuration.';
 
+  // Fall back to known values from the signed-in session + profile when the
+  // user hasn't saved their own value yet.
   document.getElementById('cfg-user-name').value    = u.full_name || '';
   document.getElementById('cfg-user-role').value    = u.role_title || '';
-  document.getElementById('cfg-user-email').value   = u.email || '';
+  document.getElementById('cfg-user-email').value   = u.email || window.AUTH_EMAIL || '';
   document.getElementById('cfg-user-phone').value   = u.phone || '';
   document.getElementById('cfg-user-address').value = (u.address_lines || []).join('\n');
   document.getElementById('cfg-user-sig').value     = u.signature_override || '';
 
-  document.getElementById('cfg-company-name').value = c.name || '';
+  document.getElementById('cfg-company-name').value = c.name || window.COMPANY_NAME || '';
   document.getElementById('cfg-company-vp').value   = c.value_prop || '';
 
   const header = document.getElementById('cfg-company-section-header');
@@ -2557,11 +2559,28 @@ function openSetup(firstRun) {
       : 'Your company & products';
   }
 
+  // Prefer the company's canonical product catalog (edited on Company Admin)
+  // over the user's legacy per-user products. Fetch on-demand so the Settings
+  // modal always shows what's actually live.
+  let effectiveProducts = c.products || [];
+  const companyId = window.PROFILE && window.PROFILE.company_id;
+  if (companyId) {
+    try {
+      const resp = await apiFetch(`/api/get-company-data?company_id=${encodeURIComponent(companyId)}`);
+      if (resp.ok) {
+        const j = await resp.json();
+        if (Array.isArray(j.data && j.data.products) && j.data.products.length) {
+          effectiveProducts = j.data.products;
+        }
+      }
+    } catch (_) { /* fall back to per-user products */ }
+  }
+
   const selectedNames = Array.isArray(u.selected_product_names) ? u.selected_product_names : null;
   const selectedSet = selectedNames
     ? new Set(selectedNames.map(n => String(n).trim().toLowerCase()))
     : null;
-  renderProductRows(c.products || [], selectedSet);
+  renderProductRows(effectiveProducts, selectedSet);
 
   document.getElementById('cfg-icp-industry').value    = icp.industry || '';
   document.getElementById('cfg-icp-descriptor').value  = icp.industry_descriptor || '';
