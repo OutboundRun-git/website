@@ -2610,7 +2610,8 @@ async function bulkDeleteSelectedAccounts() {
   try {
     const resp = await apiFetch('/api/delete-accounts', {
       method: 'POST',
-      body: { account_numbers: nums },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_numbers: nums }),
     });
     if (!resp.ok) throw new Error(await respError(resp));
     const j = await resp.json();
