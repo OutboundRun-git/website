@@ -301,28 +301,9 @@
 
 <div class="search-bar" style="display:flex; gap:10px; align-items:center;">
   <input type="text" id="search" placeholder="Search accounts...   (press / to focus)" oninput="filterAccounts()" style="flex:1">
-  <select id="filter-status" onchange="filterAccounts()" title="Filter by pipeline status" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
-    <option value="all">All statuses</option>
-    <option value="starred">★ Starred only</option>
-    <option value="new">New</option>
-    <option value="in_progress">In progress</option>
-    <option value="opportunity">Opportunity</option>
-    <option value="won">Won</option>
-    <option value="lost">Lost</option>
-    <option value="cold">Cold</option>
-    <option value="disqualified">Disqualified</option>
-  </select>
-  <select id="sort-order" onchange="filterAccounts()" title="Sort accounts" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
-    <option value="starred_first">Starred first</option>
-    <option value="alphabetical">A → Z</option>
-    <option value="account_number">Account #</option>
-    <option value="recent">Recently updated</option>
-    <option value="contact_count">Most contacts</option>
-    <option value="status">By status</option>
-  </select>
 </div>
 
-<div class="controls">
+<div class="controls" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
   <button onclick="showView('accounts')" title="Main view: list of target accounts with research, hypotheses, and drafted outreach">Accounts</button>
   <button onclick="expandAll()" title="Open every account row to show its contacts, research, and GTM hypothesis">Expand All</button>
   <button onclick="collapseAll()" title="Close every open account row">Collapse All</button>
@@ -331,6 +312,27 @@
   <button onclick="selectVisible()" title="Select every contact currently visible on screen (respects filters)">Select All Visible</button>
   <button onclick="clearSelection()" title="Unselect all currently selected contacts">Clear Selection</button>
   <button onclick="openHelp()" title="Help + keyboard shortcuts (or press ?)">?</button>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <select id="filter-status" onchange="filterAccounts()" title="Filter by pipeline status" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
+      <option value="all">All statuses</option>
+      <option value="starred">★ Starred only</option>
+      <option value="new">New</option>
+      <option value="in_progress">In progress</option>
+      <option value="opportunity">Opportunity</option>
+      <option value="won">Won</option>
+      <option value="lost">Lost</option>
+      <option value="cold">Cold</option>
+      <option value="disqualified">Disqualified</option>
+    </select>
+    <select id="sort-order" onchange="filterAccounts()" title="Sort accounts" style="padding:8px 10px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e1e4e8; font-size:13px;">
+      <option value="starred_first">Starred first</option>
+      <option value="alphabetical">A → Z</option>
+      <option value="account_number">Account #</option>
+      <option value="recent">Recently updated</option>
+      <option value="contact_count">Most contacts</option>
+      <option value="status">By status</option>
+    </select>
+  </div>
   <span class="stats" id="stats-bar"></span>
 </div>
 
