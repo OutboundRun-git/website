@@ -51,10 +51,14 @@ Return the research as HTML using ONLY these tags (no markdown):
 - <h3> for section headers (e.g. "Company Overview", "10-K / Financial Highlights", "Technology Stack", "Recent News & Initiatives")
 - <p> for paragraphs
 - <ul><li> for bullet lists
-- <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span> inline after EVERY specific fact that has a verifiable source. Both the citation number AND the source's publication / filing / last-updated date are REQUIRED on every sourced fact.
+- <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span> inline after EVERY statement in the output. Both the citation number AND the source's publication / filing / last-updated date are REQUIRED on every single <p> and <li>.
 - A <div class="footnotes"> at the very end with one <p> per citation in this exact format: <p>[N] Source name, YYYY-MM-DD: "Title or topic". URL</p>
 
+Every statement in the research block must be sourced. If a statement cannot be tied to a dated source, DROP it. Do not carry forward unsourced claims from prior research runs.
+
 The date on the inline span is the publication, filing, or last-updated date of the cited source (e.g. earnings release date, 10-K filing date, article publish date). It is NOT today's date. If a source has no reliable published date, use the most specific defensible value ("2026-Q2", "undated"); do not guess a specific day.
+
+Never emit a summary sentence saying "no new facts were found" or "the existing research is unchanged". Rebuild the research from sources every run.
 
 Be specific. Do not write generic statements that apply to any {industry_descriptor} company. If a fact cannot be sourced, omit it.
 
@@ -126,20 +130,20 @@ FETCH 3: Business-news search across the user's trusted news outlets
 From the credible sources above, identify which are news outlets (Bloomberg, Reuters, AP, industry trade press, etc.). Search each for "{account_name}" from the last 18 months. Extract any acquisitions, funding, leadership changes, or strategic announcements. Note which outlet each fact came from.
 
 SYNTHESIS INSTRUCTIONS:
-- Start with the existing CRM-based research as your foundation. Keep all of it verbatim.
-- Add a new section <h3>Web Research Updates</h3> containing only what you found in the 3 fetches above.
-- Only include a fact if it came directly from one of the fetches. Do not invent or infer.
-- EVERY statement derived from a web fetch MUST have both a citation number and the publication / filing date of the source. Format the inline marker as: <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span> immediately after the fact.
+- REBUILD the full research section from scratch on every run. Do not preserve the existing research block verbatim. Treat the existing research as a hint about what facts may be true, but every fact you keep must be re-sourced to a dated source via your three fetches above.
+- EVERY statement in your output MUST carry an inline citation AND a source publication date. No exceptions. If a fact from the prior research cannot be re-sourced to a dated source, DROP it. Do not carry forward unsourced claims.
+- Format the inline marker immediately after each fact as: <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span>
 - The date is the publication, filing, or last-updated date of the cited source (e.g. earnings-release date, 10-K filing date, article publish date). It is NOT today's date and NOT the research-run date.
-- If a source has no reliable published date, use the most specific date you can defend (e.g. "2026-Q2" is acceptable, "undated" is acceptable). Do not guess a specific date.
+- If a source has no reliable published date, use the most specific defensible value ("2026-Q2", "undated"); do not guess a specific day.
 - At the very end include a <div class="footnotes"> with one <p> per citation in this exact format:
     <p>[N] Source name, YYYY-MM-DD: "Title or topic". URL</p>
   If the date is only a period or truly unknown, use that in place of the ISO date (e.g. "2026-Q2" or "undated").
-- Do not add citations to the existing CRM-based content.
+- Structure the research with <h3> section headers (e.g. "Company Overview", "Financials", "Technology & Strategic Initiatives", "Recent News"). Every <p> and every <li> under those headers must end with the inline cite + date span before the closing tag.
 - Use only these HTML tags: <h3>, <p>, <ul>, <li>, <sup class="cite">, <span class="cite-date">, <div class="footnotes">. No markdown.
 - Do NOT use em-dashes anywhere in the output. Use periods, commas, or colons instead.
+- Never emit a summary sentence saying "no new facts were found" or "the existing research is unchanged". If you cannot source enough to build a meaningful section, omit that section. If you cannot source anything at all, return a single <p> stating which fetches failed and why, each with its own inline cite + date pointing at the attempted source.
 
-Return ONLY the raw HTML. No JSON wrapper, no markdown fences, no preamble. Your entire response should start with <p> or <h3> and end with </div>.
+Return ONLY the raw HTML. No JSON wrapper, no markdown fences, no preamble. Your entire response should start with <h3> or <p> and end with </div>.
 """
 
 
