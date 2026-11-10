@@ -264,3 +264,18 @@ class TestCredibleRecommendations:
         cfg = {}
         out = _credible_sources_list(cfg)
         assert 'Public web search' in out
+
+
+class TestResearchPromptCitationDate:
+    def test_requires_citation_with_publication_date(self):
+        from api._lib.prompts import build_research_prompt
+        cfg = {'user': {'full_name': 'K', 'role_title': 'AE'}, 'company': {'name': 'OR'}, 'icp': {'industry_descriptor': 'ecom'}}
+        acc = {'account_name': 'TestCo', 'account_number': 'A-1', 'research': 'existing'}
+        p = build_research_prompt(cfg, acc)
+        # The prompt instructs Claude on both the citation marker and the date span
+        assert 'cite-date' in p
+        assert 'YYYY-MM-DD' in p
+        # And the footnote format now includes the date
+        assert 'Source name, YYYY-MM-DD' in p
+        # And the system makes the "not today's date" expectation explicit
+        assert 'NOT today' in p or 'not today' in p.lower()

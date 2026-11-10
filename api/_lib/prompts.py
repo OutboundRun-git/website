@@ -126,10 +126,14 @@ SYNTHESIS INSTRUCTIONS:
 - Start with the existing CRM-based research as your foundation. Keep all of it verbatim.
 - Add a new section <h3>Web Research Updates</h3> containing only what you found in the 3 fetches above.
 - Only include a fact if it came directly from one of the fetches. Do not invent or infer.
-- Add inline citations ONLY for facts from the web fetches: <sup class="cite">[N]</sup> immediately after the fact.
-- At the very end include a <div class="footnotes"> with one <p> per citation: [N] Source name: URL
+- EVERY statement derived from a web fetch MUST have both a citation number and the publication / filing date of the source. Format the inline marker as: <sup class="cite">[N]</sup> <span class="cite-date">(YYYY-MM-DD)</span> immediately after the fact.
+- The date is the publication, filing, or last-updated date of the cited source (e.g. earnings-release date, 10-K filing date, article publish date). It is NOT today's date and NOT the research-run date.
+- If a source has no reliable published date, use the most specific date you can defend (e.g. "2026-Q2" is acceptable, "undated" is acceptable). Do not guess a specific date.
+- At the very end include a <div class="footnotes"> with one <p> per citation in this exact format:
+    <p>[N] Source name, YYYY-MM-DD: "Title or topic". URL</p>
+  If the date is only a period or truly unknown, use that in place of the ISO date (e.g. "2026-Q2" or "undated").
 - Do not add citations to the existing CRM-based content.
-- Use only these HTML tags: <h3>, <p>, <ul>, <li>, <sup class="cite">, <div class="footnotes">. No markdown.
+- Use only these HTML tags: <h3>, <p>, <ul>, <li>, <sup class="cite">, <span class="cite-date">, <div class="footnotes">. No markdown.
 - Do NOT use em-dashes anywhere in the output. Use periods, commas, or colons instead.
 
 Return ONLY the raw HTML. No JSON wrapper, no markdown fences, no preamble. Your entire response should start with <p> or <h3> and end with </div>.
