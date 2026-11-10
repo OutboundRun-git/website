@@ -17,6 +17,12 @@ EDITABLE_FIELDS = {
     'hook': 1000,
     'subject': 200,
     'body': 5000,
+    'flag': 20,
+    'flag_reason': 500,
+    'human_flag': 20,
+    'human_reason': 500,
+    'exec_flag': 20,
+    'exec_reason': 500,
 }
 
 

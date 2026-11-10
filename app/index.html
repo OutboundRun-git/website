@@ -234,8 +234,8 @@
   #flag-popover .pop-description { font-size: 11px; color: #8b949e; }
   #flag-popover .pop-detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #6e7681; margin-bottom: 3px; }
   #flag-popover .pop-detail { font-size: 11px; color: #c9d1d9; }
-  .flag-edit-btn { background: none; border: none; color: #484f58; cursor: pointer; font-size: 11px; padding: 0 2px; line-height: 1; vertical-align: middle; }
-  .flag-edit-btn:hover { color: #58a6ff; }
+  .flag-edit-btn { background: none; border: none; color: #58a6ff; cursor: pointer; font-size: 13px; padding: 0 3px; line-height: 1; vertical-align: middle; }
+  .flag-edit-btn:hover { color: #a3c9ff; }
 
   /* Flag override editor */
   #flag-edit-pop { display: none; position: fixed; z-index: 400; background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; width: 270px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
@@ -3344,6 +3344,9 @@ function openEditContact(accountNumber, contactEmail, contactName) {
   _editState().origEmail = c.email || '';
   _editState().origName = c.name || '';
   document.getElementById('edit-modal-title').textContent = 'Edit contact';
+  const flagOpts = (cur) => ['GREEN', 'YELLOW', 'RED'].map(v =>
+    `<option value="${v}" ${(cur||'').toUpperCase()===v ? 'selected' : ''}>${v}</option>`
+  ).join('');
   document.getElementById('edit-modal-fields').innerHTML = `
     <div class="edit-row"><label>Name</label><input type="text" id="ef-name" value="${escapeAttr(c.name || '')}"></div>
     <div class="edit-row"><label>Title</label><input type="text" id="ef-title" value="${escapeAttr(c.title || '')}"></div>
@@ -3352,6 +3355,14 @@ function openEditContact(accountNumber, contactEmail, contactName) {
     <div class="edit-row"><label>Hook (context, why this person)</label><textarea id="ef-hook">${escapeText(c.hook || '')}</textarea></div>
     <div class="edit-row"><label>Email subject</label><input type="text" id="ef-subject" value="${escapeAttr(c.subject || '')}"></div>
     <div class="edit-row"><label>Email body</label><textarea id="ef-body" rows="10" style="min-height:180px; font-family:inherit; line-height:1.5;">${escapeText(c.body || '')}</textarea></div>
+    <hr style="border:none; border-top:1px solid #30363d; margin:14px 0 10px 0;">
+    <div style="font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Flags (override the AI's assessment)</div>
+    <div class="edit-row"><label>Flag</label><select id="ef-flag">${flagOpts(c.flag)}</select></div>
+    <div class="edit-row"><label>Flag reason</label><input type="text" id="ef-flag-reason" value="${escapeAttr(c.flag_reason || '')}"></div>
+    <div class="edit-row"><label>Human?</label><select id="ef-human-flag">${flagOpts(c.human_flag)}</select></div>
+    <div class="edit-row"><label>Human reason</label><input type="text" id="ef-human-reason" value="${escapeAttr(c.human_reason || '')}"></div>
+    <div class="edit-row"><label>Exec?</label><select id="ef-exec-flag">${flagOpts(c.exec_flag)}</select></div>
+    <div class="edit-row"><label>Exec reason</label><input type="text" id="ef-exec-reason" value="${escapeAttr(c.exec_reason || '')}"></div>
   `;
   document.getElementById('edit-overlay').classList.add('open');
 }
@@ -3386,6 +3397,12 @@ async function saveEdit() {
         hook: document.getElementById('ef-hook').value,
         subject: document.getElementById('ef-subject')?.value ?? '',
         body: document.getElementById('ef-body')?.value ?? '',
+        flag: document.getElementById('ef-flag')?.value ?? '',
+        flag_reason: document.getElementById('ef-flag-reason')?.value ?? '',
+        human_flag: document.getElementById('ef-human-flag')?.value ?? '',
+        human_reason: document.getElementById('ef-human-reason')?.value ?? '',
+        exec_flag: document.getElementById('ef-exec-flag')?.value ?? '',
+        exec_reason: document.getElementById('ef-exec-reason')?.value ?? '',
       };
       const resp = await apiFetch('/api/edit-contact', {
         method: 'POST',
