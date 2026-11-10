@@ -329,11 +329,17 @@
     <div class="panel">
       <h2>Credible external sources</h2>
       <p class="sub">Trusted sources OutboundRun pulls research from. All curated sources are checked by default — uncheck any that don't fit your business. Add anything bespoke under "Additional custom sources."</p>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:6px;">
+        <label for="cfg-credible-min-date-default" style="font-size:12px; color:var(--ink-mute);">Company default: only use content published on or after</label>
+        <input type="date" id="cfg-credible-min-date-default" style="background:#161b22; border:1px solid #30363d; color:#e1e4e8; padding:4px 6px; border-radius:4px; font-family:inherit; font-size:12px;">
+        <span style="font-size:11px; color:var(--ink-mute);">(blank = 18 months ago; per-source dates below override this)</span>
+      </div>
       <div id="credible-recs-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 20px; margin-bottom:16px;">
         <div class="empty">Loading recommendations...</div>
       </div>
       <label style="display:block; font-size:12px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Additional custom sources (one per line)</label>
       <textarea id="cfg-credible-sources" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Client Portal Dashboard&#10;Trade association reports&#10;Private industry forums"></textarea>
+      <p class="sub" style="margin-top:8px;">Custom sources use the company default date; they cannot be dated individually.</p>
     </div>
 
     <div class="panel">
@@ -549,6 +555,10 @@
     }
   }
 
+  // Map of rec_id -> 'YYYY-MM-DD' for per-source min dates on credible sources.
+  // Loaded from company data; written back on save.
+  let CREDIBLE_PER_SOURCE_DATES = {};
+
   function renderRecGrid(kind, gridId, cbClass, optOuts) {
     const grid = document.getElementById(gridId);
     if (!grid) return;
@@ -583,12 +593,18 @@
             style="background:transparent; border:none; cursor:pointer; padding:2px 4px; color:${configured ? '#6ecf7c' : 'var(--ink-mute)'}; font-size:13px;">
             ⚙
           </button>` : '';
+        const dateInput = (kind === 'credible') ? `
+          <input type="date" class="credible-rec-date" data-rec-id="${escapeHtml(r.id)}"
+            value="${escapeHtml(CREDIBLE_PER_SOURCE_DATES[r.id] || '')}"
+            title="Only use content from this source published on or after this date. Blank = use company default."
+            style="background:#161b22; border:1px solid #30363d; color:#e1e4e8; padding:2px 4px; border-radius:4px; font-family:inherit; font-size:11px; width:128px;">` : '';
         return `
-          <div style="display:flex; align-items:center; gap:2px;">
+          <div style="display:flex; align-items:center; gap:4px;">
             <label style="display:flex; align-items:center; gap:8px; padding:4px 6px; cursor:pointer; border-radius:4px; font-size:13px; flex:1;" ${title}>
               <input type="checkbox" class="${cbClass}" data-rec-id="${escapeHtml(r.id)}" ${checked}>
               <span>${escapeHtml(r.name)}</span>
             </label>
+            ${dateInput}
             ${gear}
           </div>`;
       }).join('');
@@ -630,6 +646,8 @@
       document.getElementById('cfg-credible-sources').value = (d.credible_external_sources || []).join('\n');
       document.getElementById('cfg-internal-sources').value = (d.internal_sources || []).join('\n');
       document.getElementById('cfg-contact-discovery').value = (d.contact_discovery_sources || []).join('\n');
+      document.getElementById('cfg-credible-min-date-default').value = d.credible_source_min_date_default || '';
+      CREDIBLE_PER_SOURCE_DATES = d.credible_source_min_dates || {};
       await loadConnectionsForCompany(cid);
       renderRecGrid('credible', 'credible-recs-grid', 'credible-rec-cb', d.credible_source_opt_outs || []);
       renderRecGrid('internal', 'internal-recs-grid', 'internal-rec-cb', d.internal_source_opt_outs || []);
@@ -656,6 +674,11 @@
         short_desc: r.querySelector('.prod-desc').value.trim(),
       }))
       .filter(p => p.name);
+    const credibleMinDates = {};
+    for (const inp of document.querySelectorAll('.credible-rec-date')) {
+      const v = (inp.value || '').trim();
+      if (v) credibleMinDates[inp.dataset.recId] = v;
+    }
     const payload = {
       company_id: cid,
       data: {
@@ -665,6 +688,8 @@
         credible_source_opt_outs:   optOutsFor('.credible-rec-cb'),
         internal_source_opt_outs:   optOutsFor('.internal-rec-cb'),
         contact_discovery_opt_outs: optOutsFor('.contact-rec-cb'),
+        credible_source_min_date_default: (document.getElementById('cfg-credible-min-date-default').value || '').trim(),
+        credible_source_min_dates: credibleMinDates,
         products,
       },
     };

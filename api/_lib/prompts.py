@@ -7,6 +7,7 @@ Em-dashes have been replaced with periods or colons throughout to enforce the
 OutboundRun no-em-dashes rule (Claude tends to carry template punctuation into
 output, which becomes buyer-facing).
 """
+from datetime import date, timedelta
 
 
 # ============================================================================
@@ -33,7 +34,7 @@ From contacts found (plus any publicly known executives you can identify from we
 For mobile numbers: use CRM data if available, otherwise return "Not found".
 
 ## TASK 3: WEB RESEARCH
-Search publicly available information about {account_name}, prioritizing these credible sources the user trusts:
+Search publicly available information about {account_name}, prioritizing these credible sources the user trusts. EACH source lists a minimum publication date. Do NOT cite or incorporate any fact from a source whose publication date is before that source's minimum date:
 {credible_sources_list}
 
 Also incorporate anything relevant from these internal data sources the user has access to: {internal_sources_list}
@@ -106,7 +107,7 @@ ACCOUNT NUMBER: {account_number}
 EXISTING INTERNAL RESEARCH (do not re-cite this, it comes from the user's internal data):
 {existing_research}
 
-USER-TRUSTED CREDIBLE SOURCES (prioritize these when fetching, in this order):
+USER-TRUSTED CREDIBLE SOURCES (prioritize these when fetching, in this order). EACH source lists a minimum publication date. Do NOT cite or incorporate any fact from a source whose publication date is before that source's minimum. If a source has no content on or after its minimum date for this account, skip it:
 {credible_sources_list}
 
 INTERNAL SOURCES THE USER HAS ACCESS TO: {internal_sources_list}
@@ -477,16 +478,60 @@ def _source_list(cfg: dict, key: str) -> list[str]:
     return [s.strip() for s in (cfg.get(key) or []) if s and s.strip()]
 
 
+_DEFAULT_RESEARCH_HORIZON_MONTHS = 18
+
+
+def _system_default_min_date() -> str:
+    """Floor used when neither a per-source nor a company-level date is set.
+    18 months ago, approximated as 18 * 30 days to avoid a month-arithmetic
+    dependency; close enough for a research-recency hint."""
+    return (date.today() - timedelta(days=_DEFAULT_RESEARCH_HORIZON_MONTHS * 30)).isoformat()
+
+
+def _credible_min_date_for(cfg: dict, rec_id: str | None) -> str:
+    """Per-source override (keyed by curated rec_id) → company-level default →
+    system default (today - 18mo)."""
+    cd = cfg.get('_company_data') or {}
+    per = cd.get('credible_source_min_dates') or {}
+    if rec_id and isinstance(per, dict):
+        v = per.get(rec_id)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    company_default = cd.get('credible_source_min_date_default')
+    if isinstance(company_default, str) and company_default.strip():
+        return company_default.strip()
+    return _system_default_min_date()
+
+
 def _credible_sources_list(cfg: dict) -> str:
-    sources = _merge_recs_with_custom(
-        cfg,
-        recs_key='_recommendations',
-        opt_outs_key='credible_source_opt_outs',
-        custom_key='credible_external_sources',
-    )
-    if not sources:
+    cd = cfg.get('_company_data') or {}
+    recs = cd.get('_recommendations') or []
+    opt_outs = set(cd.get('credible_source_opt_outs') or [])
+    lines: list[str] = []
+    seen: set[str] = set()
+    for r in recs:
+        if r.get('id') in opt_outs:
+            continue
+        name = (r.get('name') or '').strip()
+        if not name:
+            continue
+        k = name.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        min_dt = _credible_min_date_for(cfg, r.get('id'))
+        lines.append(f'- {name} (only use content published on or after {min_dt})')
+    # Custom (textarea) sources use the company-level or system default only.
+    custom_min = _credible_min_date_for(cfg, None)
+    for s in _source_list(cfg, 'credible_external_sources'):
+        k = s.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        lines.append(f'- {s} (only use content published on or after {custom_min})')
+    if not lines:
         return '- Public web search (no specific credible sources configured)'
-    return '\n'.join(f'- {s}' for s in sources)
+    return '\n'.join(lines)
 
 
 def _merge_recs_with_custom(cfg: dict, recs_key: str, opt_outs_key: str, custom_key: str) -> list[str]:

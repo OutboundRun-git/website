@@ -11,6 +11,7 @@ from _lib import repo
 
 
 _UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 ALLOWED_STRING_LIST_KEYS = {
     'credible_external_sources',
@@ -24,6 +25,12 @@ ALLOWED_UUID_LIST_KEYS = {
 }
 ALLOWED_PRODUCT_LIST_KEYS = {
     'products',
+}
+ALLOWED_DATE_KEYS = {
+    'credible_source_min_date_default',
+}
+ALLOWED_UUID_DATE_MAP_KEYS = {
+    'credible_source_min_dates',
 }
 MAX_LIST = 200
 MAX_ITEM_LEN = 400
@@ -80,6 +87,29 @@ class handler(BaseHandler):
                     if isinstance(v, str) and _UUID_RE.match(v):
                         ids.append(v)
                 cleaned[key] = ids
+            elif key in ALLOWED_DATE_KEYS:
+                if val in (None, ''):
+                    cleaned[key] = ''
+                elif isinstance(val, str) and _DATE_RE.match(val.strip()):
+                    cleaned[key] = val.strip()
+                else:
+                    raise HttpError(400, f'{key} must be YYYY-MM-DD or empty')
+            elif key in ALLOWED_UUID_DATE_MAP_KEYS:
+                if not isinstance(val, dict):
+                    raise HttpError(400, f'{key} must be an object of rec_id -> YYYY-MM-DD')
+                m: dict = {}
+                for k, v in val.items():
+                    if not (isinstance(k, str) and _UUID_RE.match(k)):
+                        continue
+                    if not isinstance(v, str):
+                        continue
+                    s = v.strip()
+                    if not s:
+                        continue
+                    if not _DATE_RE.match(s):
+                        raise HttpError(400, f'{key}[{k}] must be YYYY-MM-DD')
+                    m[k] = s
+                cleaned[key] = m
             elif key in ALLOWED_PRODUCT_LIST_KEYS:
                 if not isinstance(val, list):
                     raise HttpError(400, f'{key} must be an array of {{name, short_desc}} objects')
