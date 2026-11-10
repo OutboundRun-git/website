@@ -30,12 +30,14 @@ def _configure_db_for_claude_endpoint(mock_db, acc_row=ACC_ROW, config=None):
     # start_job insert -> return [{id: 'job-1'}]
     # upsert_account_data update -> return [{id: 'row-1'}] (success)
     # finish_job update -> return []
-    # load_prompt_context adds profiles + credible_source_recommendations
-    # queries after get_config. Stub company_id=None so companies is skipped.
+    # load_prompt_context adds profiles + 3 recommendation table queries
+    # after get_config. Stub company_id=None so companies is skipped.
     calls = iter([
         _chain(final_data=[{'data': config}]),        # get_config
         _chain(final_data=[{'company_id': None}]),    # _get_user_company_id
         _chain(final_data=[]),                         # list_credible_recommendations
+        _chain(final_data=[]),                         # list_internal_recommendations
+        _chain(final_data=[]),                         # list_contact_discovery_recommendations
         _chain(final_data=[acc_row]),                 # get_account_by_number
         _chain(final_data=[{'id': 'job-1'}]),         # start_job insert
         _chain(final_data=[{'id': 'row-1'}]),         # upsert_account_data
@@ -71,6 +73,8 @@ class TestRefreshEndpoint:
             _chain(final_data=[{'data': {}}]),
             _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
         _chain(final_data=[]),                        # list_credible_recommendations
+            _chain(final_data=[]),                        # list_internal_recommendations
+            _chain(final_data=[]),                        # list_contact_discovery_recommendations
             _chain(final_data=[]),
         ])
         mock_db.table.side_effect = lambda *a, **kw: next(calls)
@@ -83,6 +87,8 @@ class TestRefreshEndpoint:
             _chain(final_data=[{'data': {}}]),
             _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
         _chain(final_data=[]),                        # list_credible_recommendations
+            _chain(final_data=[]),                        # list_internal_recommendations
+            _chain(final_data=[]),                        # list_contact_discovery_recommendations
             _chain(final_data=[ACC_ROW]),
             _chain(final_data=[{'id': 'job-1'}]),
             _chain(final_data=[]),  # fail_job update
@@ -117,6 +123,8 @@ class TestRefreshResearchEndpoint:
             _chain(final_data=[{'data': {}}]),
             _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
         _chain(final_data=[]),                        # list_credible_recommendations
+            _chain(final_data=[]),                        # list_internal_recommendations
+            _chain(final_data=[]),                        # list_contact_discovery_recommendations
             _chain(final_data=[ACC_ROW]),
             _chain(final_data=[{'id': 'job-1'}]),
             _chain(final_data=[]),
@@ -154,6 +162,8 @@ class TestRefreshGtmEndpoint:
             _chain(final_data=[{'data': {}}]),
             _chain(final_data=[{'company_id': None}]),  # load_prompt_context profiles
         _chain(final_data=[]),                        # list_credible_recommendations
+            _chain(final_data=[]),                        # list_internal_recommendations
+            _chain(final_data=[]),                        # list_contact_discovery_recommendations
             _chain(final_data=[ACC_ROW]),  # research is '' in ACC_ROW
         ])
         mock_db.table.side_effect = lambda *a, **kw: next(calls)

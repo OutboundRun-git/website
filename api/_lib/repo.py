@@ -52,20 +52,34 @@ def load_prompt_context(user_id: str) -> dict:
     except Exception:
         pass
     try:
-        recs = list_credible_recommendations()
-        cfg.setdefault('_company_data', {})['_recommendations'] = recs
+        cd = cfg.setdefault('_company_data', {})
+        cd['_recommendations'] = list_credible_recommendations()
+        cd['_internal_recommendations'] = list_internal_recommendations()
+        cd['_contact_discovery_recommendations'] = list_contact_discovery_recommendations()
     except Exception:
         pass
     return cfg
 
 
-def list_credible_recommendations() -> list[dict]:
-    resp = (get_db().table('credible_source_recommendations')
+def _list_recs(table: str) -> list[dict]:
+    resp = (get_db().table(table)
         .select('id, name, url, category, display_order')
         .order('category')
         .order('display_order')
         .execute())
     return resp.data or []
+
+
+def list_credible_recommendations() -> list[dict]:
+    return _list_recs('credible_source_recommendations')
+
+
+def list_internal_recommendations() -> list[dict]:
+    return _list_recs('internal_source_recommendations')
+
+
+def list_contact_discovery_recommendations() -> list[dict]:
+    return _list_recs('contact_discovery_recommendations')
 
 
 def _get_user_company_id(user_id: str) -> str | None:

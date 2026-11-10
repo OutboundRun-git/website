@@ -279,7 +279,10 @@
 <body>
 
 <header>
-  <h1 id="brand-title">OutboundRun</h1>
+  <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+    <h1 id="brand-title" style="margin:0;">OutboundRun</h1>
+    <a id="platform-admin-link" href="/app/admin.html?tab=companies" title="Platform admin: manage every company + user" style="display:none; background:#21262d; border:1px solid #30363d; color:#a3c9ff; padding:4px 10px; border-radius:6px; font-size:11px; text-decoration:none;">⚙ Platform Admin</a>
+  </div>
   <div class="meta" id="header-meta">Loading accounts...</div>
   <div class="auth-block" style="display:flex; align-items:center; gap:12px; margin-left:auto;">
     <span id="auth-email" style="font-size:12px; color:#8b949e"></span>
@@ -294,7 +297,7 @@
         <button class="tools-menu-item tools-menu-danger" onclick="closeToolsMenu(); deleteAllAccounts()" title="Delete every account">🗑 Delete All Accounts</button>
       </div>
     </div>
-    <a id="admin-link" href="/app/admin.html" style="display:none; background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; font-size:12px; text-decoration:none;">Admin</a>
+    <a id="company-admin-link" href="/app/admin.html?tab=config" title="Company admin: edit your company's shared config" style="display:none; background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; font-size:12px; text-decoration:none;">🏢 Company Admin</a>
     <button id="auth-signout" onclick="signOut()" style="background:#21262d; border:1px solid #30363d; color:#e1e4e8; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">Sign out</button>
   </div>
 </header>
@@ -738,8 +741,14 @@
 
       const el = document.getElementById('auth-email');
       if (el) el.textContent = session.user.email;
-      const adminLink = document.getElementById('admin-link');
-      if (adminLink && profile.is_admin) adminLink.style.display = 'inline-block';
+      // Platform Admin (top-left under logo): visible only to is_admin
+      const platformLink = document.getElementById('platform-admin-link');
+      if (platformLink && profile.is_admin) platformLink.style.display = 'inline-block';
+      // Company Admin (top-right next to Sign out): visible to platform admins only
+      // for now. Managers will get access once admin.html gates by role rather than
+      // require_admin (see project_outboundrun_company_scoped_products_plan Phase 1b).
+      const companyLink = document.getElementById('company-admin-link');
+      if (companyLink && profile.is_admin) companyLink.style.display = 'inline-block';
       // Kick off the app once auth is ready
       document.dispatchEvent(new Event('auth-ready'));
     }

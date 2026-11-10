@@ -324,14 +324,22 @@
 
     <div class="panel">
       <h2>Internal sources</h2>
-      <p class="sub">Your own data OutboundRun cross-references for the value hypothesis. One per line.</p>
-      <textarea id="cfg-internal-sources" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Your CRM&#10;Past deal notes&#10;Marketing analytics"></textarea>
+      <p class="sub">Your own data OutboundRun cross-references for the value hypothesis. All curated sources are checked by default — uncheck any you don't use.</p>
+      <div id="internal-recs-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 20px; margin-bottom:16px;">
+        <div class="empty">Loading recommendations...</div>
+      </div>
+      <label style="display:block; font-size:12px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Additional custom internal sources</label>
+      <textarea id="cfg-internal-sources" rows="3" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Proprietary data lake&#10;Field CS insights&#10;Executive briefing center notes"></textarea>
     </div>
 
     <div class="panel">
       <h2>Contact-discovery sources</h2>
-      <p class="sub">The tools reps use to look up contact details. OutboundRun recommends which tool to use per contact.</p>
-      <textarea id="cfg-contact-discovery" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="LinkedIn Sales Navigator&#10;ZoomInfo&#10;Apollo.io&#10;Public web research"></textarea>
+      <p class="sub">Tools reps use to look up contact details. OutboundRun recommends which tool to use per contact.</p>
+      <div id="contact-discovery-recs-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 20px; margin-bottom:16px;">
+        <div class="empty">Loading recommendations...</div>
+      </div>
+      <label style="display:block; font-size:12px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Additional custom contact-discovery sources</label>
+      <textarea id="cfg-contact-discovery" rows="3" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Internal rolodex&#10;Partner referrals"></textarea>
     </div>
 
     <div class="panel" style="display:flex; justify-content:flex-end; gap:8px; align-items:center;">
@@ -426,64 +434,90 @@
   window.switchTab = switchTab;
 
   let CONFIG_LOADED_COMPANY = null;
-  let CREDIBLE_RECS = null;
+  const RECS_CACHE = { credible: null, internal: null, contact: null };
 
-  async function ensureCredibleRecsLoaded() {
-    if (CREDIBLE_RECS !== null) return;
-    try {
-      const r = await apiFetch('/api/list-credible-recommendations');
-      if (!r.ok) throw new Error(await respError(r));
-      const j = await r.json();
-      CREDIBLE_RECS = j.recommendations || [];
-    } catch (e) {
-      CREDIBLE_RECS = [];
-      toast('Could not load source recommendations: ' + (e.message || e), 'error');
-    }
-  }
-
-  function renderCredibleRecs(optOuts) {
-    const grid = document.getElementById('credible-recs-grid');
-    if (!grid) return;
-    if (!CREDIBLE_RECS || CREDIBLE_RECS.length === 0) {
-      grid.innerHTML = '<div class="empty">No curated sources available.</div>';
-      return;
-    }
-    const outSet = new Set(optOuts || []);
-    // Group by category
-    const byCat = {};
-    for (const r of CREDIBLE_RECS) {
-      const cat = r.category || 'other';
-      (byCat[cat] ||= []).push(r);
-    }
-    const CAT_LABEL = {
+  const CAT_LABELS = {
+    credible: {
       filings: 'Financial filings',
       news: 'Business news',
       research: 'Research + analyst firms',
       company: 'Company direct sources',
-      other: 'Other',
-    };
-    const order = ['filings', 'news', 'research', 'company', 'other'];
-    const sections = order.filter(c => byCat[c]).map(cat => {
+    },
+    internal: {
+      crm: 'CRM',
+      conv_intel: 'Conversation intelligence',
+      revenue: 'Revenue + win/loss',
+      enrichment: 'Enrichment + data',
+      analytics: 'Analytics warehouse',
+    },
+    contact: {
+      social: 'Social / professional networks',
+      database: 'B2B contact databases',
+      email: 'Email finders',
+      web: 'Web + company sources',
+    },
+  };
+
+  async function ensureAllRecsLoaded() {
+    const fetches = [];
+    if (RECS_CACHE.credible === null) fetches.push(fetchRecs('credible', '/api/list-credible-recommendations'));
+    if (RECS_CACHE.internal === null) fetches.push(fetchRecs('internal', '/api/list-internal-recommendations'));
+    if (RECS_CACHE.contact  === null) fetches.push(fetchRecs('contact',  '/api/list-contact-discovery-recommendations'));
+    await Promise.all(fetches);
+  }
+
+  async function fetchRecs(kind, endpoint) {
+    try {
+      const r = await apiFetch(endpoint);
+      if (!r.ok) throw new Error(await respError(r));
+      const j = await r.json();
+      RECS_CACHE[kind] = j.recommendations || [];
+    } catch (e) {
+      RECS_CACHE[kind] = [];
+      toast(`Could not load ${kind} recommendations: ` + (e.message || e), 'error');
+    }
+  }
+
+  function renderRecGrid(kind, gridId, cbClass, optOuts) {
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
+    const recs = RECS_CACHE[kind] || [];
+    if (!recs.length) {
+      grid.innerHTML = '<div class="empty">No curated sources available.</div>';
+      return;
+    }
+    const outSet = new Set(optOuts || []);
+    const byCat = {};
+    for (const r of recs) {
+      const cat = r.category || 'other';
+      (byCat[cat] ||= []).push(r);
+    }
+    const labels = CAT_LABELS[kind] || {};
+    const cats = Object.keys(byCat).sort((a, b) => {
+      const ao = (byCat[a][0] || {}).display_order || 0;
+      const bo = (byCat[b][0] || {}).display_order || 0;
+      return ao - bo;
+    });
+    grid.innerHTML = cats.map(cat => {
       const items = byCat[cat].map(r => {
         const checked = outSet.has(r.id) ? '' : 'checked';
         const title = r.url ? `title="${escapeHtml(r.url)}"` : '';
         return `
           <label style="display:flex; align-items:center; gap:8px; padding:4px 6px; cursor:pointer; border-radius:4px; font-size:13px;" ${title}>
-            <input type="checkbox" class="credible-rec-cb" data-rec-id="${escapeHtml(r.id)}" ${checked}>
+            <input type="checkbox" class="${cbClass}" data-rec-id="${escapeHtml(r.id)}" ${checked}>
             <span>${escapeHtml(r.name)}</span>
           </label>`;
       }).join('');
       return `
         <div style="grid-column: 1 / -1; margin-top:8px;">
-          <div style="font-size:11px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">${escapeHtml(CAT_LABEL[cat] || cat)}</div>
+          <div style="font-size:11px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">${escapeHtml(labels[cat] || cat)}</div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2px 20px;">${items}</div>
         </div>`;
     }).join('');
-    grid.innerHTML = sections;
   }
 
   async function ensureCompanyConfigLoaded() {
-    await ensureCredibleRecsLoaded();
+    await ensureAllRecsLoaded();
     const select = document.getElementById('config-company');
     if (!select) return;
     if (select.options.length === 0 || select.options.length !== COMPANIES.length) {
@@ -512,7 +546,9 @@
       document.getElementById('cfg-credible-sources').value = (d.credible_external_sources || []).join('\n');
       document.getElementById('cfg-internal-sources').value = (d.internal_sources || []).join('\n');
       document.getElementById('cfg-contact-discovery').value = (d.contact_discovery_sources || []).join('\n');
-      renderCredibleRecs(d.credible_source_opt_outs || []);
+      renderRecGrid('credible', 'credible-recs-grid', 'credible-rec-cb', d.credible_source_opt_outs || []);
+      renderRecGrid('internal', 'internal-recs-grid', 'internal-rec-cb', d.internal_source_opt_outs || []);
+      renderRecGrid('contact',  'contact-discovery-recs-grid', 'contact-rec-cb', d.contact_discovery_opt_outs || []);
       CONFIG_LOADED_COMPANY = cid;
       if (statusEl) statusEl.textContent = '';
     } catch (e) {
@@ -525,17 +561,18 @@
     const cid = document.getElementById('config-company').value;
     if (!cid) { toast('Pick a company first', 'error'); return; }
     const statusEl = document.getElementById('config-save-status');
-    // Opt-outs = the unchecked recommendation boxes
-    const optOuts = Array.from(document.querySelectorAll('.credible-rec-cb'))
+    const optOutsFor = (sel) => Array.from(document.querySelectorAll(sel))
       .filter(cb => !cb.checked)
       .map(cb => cb.dataset.recId);
     const payload = {
       company_id: cid,
       data: {
-        credible_external_sources: document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
-        internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
-        contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
-        credible_source_opt_outs: optOuts,
+        credible_external_sources:  document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+        internal_sources:           document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
+        contact_discovery_sources:  document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
+        credible_source_opt_outs:   optOutsFor('.credible-rec-cb'),
+        internal_source_opt_outs:   optOutsFor('.internal-rec-cb'),
+        contact_discovery_opt_outs: optOutsFor('.contact-rec-cb'),
       },
     };
     if (statusEl) { statusEl.textContent = 'Saving...'; statusEl.style.color = 'var(--ink-mute)'; }
@@ -723,6 +760,12 @@
   document.addEventListener('admin-ready', async () => {
     await loadCompanies();
     await loadUsers();
+    // Honor ?tab=<name> deep-link (companies | users | config)
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('tab');
+    if (requested && ['companies', 'users', 'config'].includes(requested)) {
+      switchTab(requested);
+    }
   });
 </script>
 

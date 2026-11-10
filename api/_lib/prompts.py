@@ -320,46 +320,59 @@ def _source_list(cfg: dict, key: str) -> list[str]:
 
 
 def _credible_sources_list(cfg: dict) -> str:
-    """Combine curated recommendations (minus opt-outs) + company's custom
-    sources + legacy user sources. Platform-curated catalog is the baseline;
-    companies uncheck via credible_source_opt_outs; everyone can still add
-    custom strings via credible_external_sources."""
-    company_data = cfg.get('_company_data') or {}
-    recs = company_data.get('_recommendations') or []
-    opt_outs = set(company_data.get('credible_source_opt_outs') or [])
+    sources = _merge_recs_with_custom(
+        cfg,
+        recs_key='_recommendations',
+        opt_outs_key='credible_source_opt_outs',
+        custom_key='credible_external_sources',
+    )
+    if not sources:
+        return '- Public web search (no specific credible sources configured)'
+    return '\n'.join(f'- {s}' for s in sources)
 
-    sources: list[str] = []
+
+def _merge_recs_with_custom(cfg: dict, recs_key: str, opt_outs_key: str, custom_key: str) -> list[str]:
+    """Shared opt-out + custom-append + case-insensitive de-dupe pipeline.
+    Used by every source list that has a platform-curated catalog."""
+    company_data = cfg.get('_company_data') or {}
+    recs = company_data.get(recs_key) or []
+    opt_outs = set(company_data.get(opt_outs_key) or [])
+    out: list[str] = []
     for r in recs:
         if r.get('id') in opt_outs:
             continue
-        name = (r.get('name') or '').strip()
-        if name:
-            sources.append(name)
-
-    sources.extend(_source_list(cfg, 'credible_external_sources'))
-
-    # De-dupe while preserving order
+        n = (r.get('name') or '').strip()
+        if n:
+            out.append(n)
+    out.extend(_source_list(cfg, custom_key))
     seen: set[str] = set()
     deduped: list[str] = []
-    for s in sources:
+    for s in out:
         k = s.lower()
         if k in seen:
             continue
         seen.add(k)
         deduped.append(s)
-
-    if not deduped:
-        return '- Public web search (no specific credible sources configured)'
-    return '\n'.join(f'- {s}' for s in deduped)
+    return deduped
 
 
 def _internal_sources_list(cfg: dict) -> str:
-    sources = _source_list(cfg, 'internal_sources')
+    sources = _merge_recs_with_custom(
+        cfg,
+        recs_key='_internal_recommendations',
+        opt_outs_key='internal_source_opt_outs',
+        custom_key='internal_sources',
+    )
     return ', '.join(sources) if sources else 'none configured'
 
 
 def _contact_discovery_list(cfg: dict) -> str:
-    sources = _source_list(cfg, 'contact_discovery_sources')
+    sources = _merge_recs_with_custom(
+        cfg,
+        recs_key='_contact_discovery_recommendations',
+        opt_outs_key='contact_discovery_opt_outs',
+        custom_key='contact_discovery_sources',
+    )
     if not sources:
         return '- Public web research (no contact-discovery tools configured)'
     return '\n'.join(f'- {s}' for s in sources)

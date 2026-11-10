@@ -19,6 +19,8 @@ ALLOWED_STRING_LIST_KEYS = {
 }
 ALLOWED_UUID_LIST_KEYS = {
     'credible_source_opt_outs',
+    'internal_source_opt_outs',
+    'contact_discovery_opt_outs',
 }
 MAX_LIST = 200
 MAX_ITEM_LEN = 400
