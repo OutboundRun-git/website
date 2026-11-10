@@ -222,6 +222,54 @@ FOCUS AREA: All {count} contacts must be specifically relevant to the product ar
 """
 
 
+IMPROVE_CONTACT_EMAIL_PROMPT_TEMPLATE = """You are a sales writer helping a {user_role} at {company_name} REWRITE a cold-outreach email to ONE specific contact at {account_name} ({industry_descriptor}) so it scores GREEN on all three quality dimensions.
+
+ACCOUNT: {account_name}
+
+RESEARCH (your sole grounding — do not invent facts not here):
+{research_html}
+
+GTM VALUE HYPOTHESIS:
+{hypothesis_html}
+
+TARGET CONTACT:
+- Name: {contact_name}
+- Title: {contact_title}
+- Email: {contact_email}
+
+CURRENT EMAIL (what the user has):
+Subject: {email_subject}
+Body:
+{email_body}
+
+CURRENT QUALITY SCORES (what you need to FIX):
+- Flag: {current_flag} — {current_flag_reason}
+- Human?: {current_human_flag} — {current_human_reason}
+- Exec?: {current_exec_flag} — {current_exec_reason}
+
+YOUR TASK: Rewrite the email so that the next grading pass returns GREEN / GREEN / GREEN. Preserve anything about the current draft that was already working; fix the specific issues named above. Specifically:
+
+- If Flag was YELLOW/RED for weak grounding: add a specific fact from the Research or GTM above.
+- If Flag was YELLOW/RED for generic phrasing: replace with language specific to {contact_title} and {account_name}.
+- If Human? was YELLOW/RED: strip AI-tell phrases (no em-dashes, no "I hope this finds you well", no "leverage", no "seamlessly", no multi-clause sentences). Shorten. Make it sound like a real rep wrote it in Gmail.
+- If Exec? was YELLOW/RED: tighten to 4 sentences max in the body, lead with the outcome, single CTA, peer tone (not supplicant).
+
+Every claim must still be grounded in the Research or GTM above. Do not invent facts to make it tighter.
+
+Return a JSON object with:
+- subject: new subject line, max 8 words, specific
+- body: new body, plain text, 4-6 sentences, no HTML, no em-dashes, signs off as "[Your name]"
+- hook: 1-2 sentences for the sender explaining why the rewrite works for this specific person
+- flag: predicted "GREEN" | "YELLOW" | "RED" (be honest; if still thin, say YELLOW with reason)
+- flag_reason: one sentence
+- flag_categories: array of applicable strings from ["Verified accurate", "Title / role unverifiable from public sources", "Personal email domain (not corporate)", "Wrong / mismatched email domain", "No email address", "Former employee", "Generic / shared inbox or role placeholder contact", "Manually added"]
+- human_flag: predicted "GREEN" | "YELLOW" | "RED"
+- human_reason: one sentence
+- exec_flag: predicted "GREEN" | "YELLOW" | "RED"
+- exec_reason: one sentence
+"""
+
+
 SCORE_CONTACT_EMAIL_PROMPT_TEMPLATE = """You are a senior sales coach grading a cold-outreach email to ONE specific contact at {account_name} ({industry_descriptor}). You did NOT write it. Judge what is in front of you.
 
 ACCOUNT: {account_name}
@@ -589,6 +637,29 @@ def build_single_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> st
         contact_email=_q(contact.get('email', '')),
         contact_hook=_q(contact.get('hook', '')),
         **ctx,
+    )
+
+
+def build_improve_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> str:
+    ctx = prompt_context(cfg)
+    return INJECTION_PREAMBLE + IMPROVE_CONTACT_EMAIL_PROMPT_TEMPLATE.format(
+        account_name=_q(acc.get('account_name')),
+        research_html=_q(acc.get('research', '')),
+        hypothesis_html=_q(acc.get('hypothesis', '')),
+        contact_name=_q(contact.get('name', '')),
+        contact_title=_q(contact.get('title', '')),
+        contact_email=_q(contact.get('email', '')),
+        email_subject=_q(contact.get('subject', '')),
+        email_body=_q(contact.get('body', '')),
+        current_flag=_q(contact.get('flag', '')),
+        current_flag_reason=_q(contact.get('flag_reason', '')),
+        current_human_flag=_q(contact.get('human_flag', '')),
+        current_human_reason=_q(contact.get('human_reason', '')),
+        current_exec_flag=_q(contact.get('exec_flag', '')),
+        current_exec_reason=_q(contact.get('exec_reason', '')),
+        user_role=ctx['user_role'],
+        company_name=ctx['company_name'],
+        industry_descriptor=ctx.get('industry_descriptor', ''),
     )
 
 

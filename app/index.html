@@ -1302,8 +1302,16 @@ function buildContactsTable(acc) {
     const rescoreBtn = (hasEmail && hasDraft)
       ? ` <button class="row-action" title="Re-score Flag / Human? / Exec? based on the current draft text" onclick="rescoreContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#58a6ff;">🔄 Re-score</button>`
       : '';
+    const flagsAreMixed = hasDraft && [
+      (c.flag || '').toUpperCase(),
+      (c.human_flag || '').toUpperCase(),
+      (c.exec_flag || '').toUpperCase(),
+    ].some(v => v === 'YELLOW' || v === 'RED');
+    const improveBtn = (hasEmail && flagsAreMixed)
+      ? ` <button class="row-action" title="Rewrite the draft to fix the issues behind the YELLOW / RED flags" onclick="improveContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#f9c784;">✨ Improve</button>`
+      : '';
     const emailCell = hasEmail
-      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}${draftBtn}${rescoreBtn}`
+      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}${draftBtn}${rescoreBtn}${improveBtn}`
       : `<span class="not-found">Not found</span>`;
     const mobileCell = c.mobile && c.mobile !== 'Not found' ? c.mobile : '<span class="not-found">Not found</span>';
     const action = contactActions[key] || { action: 'none', date: '' };
@@ -3460,6 +3468,35 @@ async function deleteAccountRow(accountNumber, event) {
     init();
   } catch (e) {
     showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function improveContactEmail(accountNumber, contactEmail, contactName) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  const who = contactName || contactEmail || 'contact';
+  showToast(`Improving draft for ${who}... (addresses current flag reasons)`);
+  try {
+    const resp = await apiFetch('/api/improve-contact-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_number: accountNumber,
+        contact_email: contactEmail,
+        contact_name: contactName,
+      }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { contact } = await resp.json();
+    const i = (acc.contacts || []).findIndex(x =>
+      (contactEmail && (x.email || '').toLowerCase() === contactEmail.toLowerCase()) ||
+      (contactName && x.name === contactName)
+    );
+    if (i !== -1) acc.contacts[i] = contact;
+    _reRenderAccount(accountNumber);
+    showToast(`Draft improved for ${who}`);
+  } catch (e) {
+    showToast('Improve failed: ' + (e.message || e), 'err');
   }
 }
 
