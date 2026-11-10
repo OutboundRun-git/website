@@ -1319,7 +1319,7 @@ function buildContactsTable(acc) {
   return panel + `<table id="${tableId}">
     <thead><tr>
       <th class="check-col"><input type="checkbox" class="select-all-table" title="Select all in this table" onchange="toggleTableAll(this, '${tableId}')"></th>
-      <th>Name</th><th>Title</th><th>Email / Draft</th><th>Mobile</th><th>Hook</th><th>Flag</th><th>Human?</th><th>Exec?</th><th>Action</th><th>Edit</th><th class="dnc-col" title="Do Not Contact">DNC</th>
+      <th title="Contact's full name as found during research">Name</th><th title="Job title at this account">Title</th><th title="Email address, plus the AI-drafted outreach email you can review and send">Email / Draft</th><th title="Mobile phone number if available">Mobile</th><th title="The personalization angle used in the draft (what makes it specific to this person)">Hook</th><th title="Quality warnings on the draft — red means something to review before sending">Flag</th><th title="Looks like a real person vs. a role alias (info@, sales@) or bot">Human?</th><th title="Executive-level contact (VP, C-level, founder)">Exec?</th><th title="What you did with this contact: emailed, texted, called, or skipped">Action</th><th title="Edit contact's name, title, or email">Edit</th><th class="dnc-col" title="Do Not Contact — exclude from all future outreach">DNC</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
@@ -2446,7 +2446,7 @@ function buildReportContent() {
       dateHtml += `<div class="report-account-group">
         <div class="report-account-name">${escHtml(accName)}</div>
         <table class="report-table">
-          <thead><tr><th>Contact</th><th>Title</th><th>Email</th><th>Activity</th></tr></thead>
+          <thead><tr><th title="Contact's full name">Contact</th><th title="Job title at this account">Title</th><th title="Email address used for outreach">Email</th><th title="What happened: emailed, texted, called, or skipped — plus the date">Activity</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>`;
