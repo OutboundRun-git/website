@@ -296,14 +296,14 @@
 </div>
 
 <div class="controls">
-  <button onclick="showView('accounts')">Accounts</button>
-  <button onclick="showView('report')">Activity Report</button>
-  <button onclick="expandAll()">Expand All</button>
-  <button onclick="collapseAll()">Collapse All</button>
-  <button onclick="selectByFlag('GREEN')">Select All Green</button>
-  <button onclick="selectByFlag('YELLOW')">Select All Yellow</button>
-  <button onclick="selectVisible()">Select All Visible</button>
-  <button onclick="clearSelection()">Clear Selection</button>
+  <button onclick="showView('accounts')" title="Main view: list of target accounts with research, hypotheses, and drafted outreach">Accounts</button>
+  <button onclick="showView('report')" title="Chronological log of outreach activity (emailed / texted / called) grouped by date and account">Activity Report</button>
+  <button onclick="expandAll()" title="Open every account row to show its contacts, research, and GTM hypothesis">Expand All</button>
+  <button onclick="collapseAll()" title="Close every open account row">Collapse All</button>
+  <button onclick="selectByFlag('GREEN')" title="Select every contact whose draft email passed quality checks (safe to send as-is)">Select All Green</button>
+  <button onclick="selectByFlag('YELLOW')" title="Select every contact whose draft has minor warnings (review before sending)">Select All Yellow</button>
+  <button onclick="selectVisible()" title="Select every contact currently visible on screen (respects filters)">Select All Visible</button>
+  <button onclick="clearSelection()" title="Unselect all currently selected contacts">Clear Selection</button>
   <button onclick="openUploadAccounts()" title="Upload account list CSV">⬆ Upload Accounts</button>
   <button onclick="deleteAllAccounts()" title="Delete every account" style="color:#ff9b96;">🗑 Delete All</button>
   <button onclick="downloadAccountsCsv()" title="Download all accounts + contacts as CSV">⬇ Export CSV</button>
@@ -983,14 +983,14 @@ function buildAccountBlock(acc) {
   div.innerHTML = `
     <div class="account-header" onclick="toggleAccount(this)">
       <input type="checkbox" class="account-select-cb" title="Select for bulk action" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleAccountSelection('${acc.account_number}', this.checked)" style="margin-right:6px; cursor:pointer;">
-      <span class="chevron">&#9654;</span>
+      <span class="chevron" title="Click to expand or collapse this account">&#9654;</span>
       <button class="star-toggle ${starred ? 'starred' : ''}" title="Star / pin (starred float to top)" onclick="toggleStar('${acc.account_number}', event)">${starred ? '★' : '☆'}</button>
-      <span class="name">${acc.account_name}</span>
+      <span class="name" title="Target account name">${acc.account_name}</span>
       <span class="badges" style="flex:1">
         ${outreachBadge}
       </span>
       <span class="badges">
-        <select class="status-select status-${status}" onclick="event.stopPropagation()" onchange="setAccountStatus('${acc.account_number}', this.value)">
+        <select class="status-select status-${status}" title="Pipeline status for this account" onclick="event.stopPropagation()" onchange="setAccountStatus('${acc.account_number}', this.value)">
           <option value="new" ${status==='new'?'selected':''}>New</option>
           <option value="in_progress" ${status==='in_progress'?'selected':''}>In progress</option>
           <option value="opportunity" ${status==='opportunity'?'selected':''}>Opportunity</option>
@@ -999,9 +999,9 @@ function buildAccountBlock(acc) {
           <option value="cold" ${status==='cold'?'selected':''}>Cold</option>
           <option value="disqualified" ${status==='disqualified'?'selected':''}>Disqualified</option>
         </select>
-        <span class="badge">${acc.account_number}</span>
-        ${emailCount > 0 ? `<span class="badge blue">${emailCount} contacts</span>` : ''}
-        ${hasBadge ? acc.gtm_products.map(p => `<span class="badge green">${p}</span>`).join('') : '<span class="badge loading">Pending</span>'}
+        <span class="badge" title="Internal account number">${acc.account_number}</span>
+        ${emailCount > 0 ? `<span class="badge blue" title="Number of contacts identified at this account">${emailCount} contacts</span>` : ''}
+        ${hasBadge ? acc.gtm_products.map(p => `<span class="badge green" title="GTM hypothesis: which of your products fits this account">${p}</span>`).join('') : '<span class="badge loading" title="Research + GTM hypothesis not run yet. Click into the account and refresh.">Pending</span>'}
       </span>
       <span class="account-header-actions" onclick="event.stopPropagation()">
         <button class="row-action" title="Edit account (or press ✎)" onclick="openEditAccount('${acc.account_number}')">✎</button>
