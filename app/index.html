@@ -3350,6 +3350,8 @@ function openEditContact(accountNumber, contactEmail, contactName) {
     <div class="edit-row"><label>Email</label><input type="email" id="ef-email" value="${escapeAttr(c.email || '')}"></div>
     <div class="edit-row"><label>Mobile</label><input type="text" id="ef-mobile" value="${escapeAttr(c.mobile || '')}"></div>
     <div class="edit-row"><label>Hook (context, why this person)</label><textarea id="ef-hook">${escapeText(c.hook || '')}</textarea></div>
+    <div class="edit-row"><label>Email subject</label><input type="text" id="ef-subject" value="${escapeAttr(c.subject || '')}"></div>
+    <div class="edit-row"><label>Email body</label><textarea id="ef-body" rows="10" style="min-height:180px; font-family:inherit; line-height:1.5;">${escapeText(c.body || '')}</textarea></div>
   `;
   document.getElementById('edit-overlay').classList.add('open');
 }
@@ -3382,6 +3384,8 @@ async function saveEdit() {
         email: document.getElementById('ef-email').value,
         mobile: document.getElementById('ef-mobile').value,
         hook: document.getElementById('ef-hook').value,
+        subject: document.getElementById('ef-subject')?.value ?? '',
+        body: document.getElementById('ef-body')?.value ?? '',
       };
       const resp = await apiFetch('/api/edit-contact', {
         method: 'POST',
