@@ -1299,8 +1299,11 @@ function buildContactsTable(acc) {
     const draftBtn = (hasEmail && !hasDraft)
       ? ` <button class="row-action" title="Draft outreach email using Research + GTM for this persona" onclick="draftContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#58a6ff;">✉ Draft</button>`
       : '';
+    const rescoreBtn = (hasEmail && hasDraft)
+      ? ` <button class="row-action" title="Re-score Flag / Human? / Exec? based on the current draft text" onclick="rescoreContactEmail('${acc.account_number}', '${escJs(c.email || '')}', '${escJs(c.name || '')}')" style="padding:2px 6px; font-size:11px; color:#58a6ff;">🔄 Re-score</button>`
+      : '';
     const emailCell = hasEmail
-      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}${draftBtn}`
+      ? `<a class="email-link" onclick="openModal('${acc.account_number}', '${escJs(c.name)}', '${escJs(c.email)}', '${escJs(c.subject)}', '${escJs(c.body)}')">${c.email}</a>${stateTag}${draftBtn}${rescoreBtn}`
       : `<span class="not-found">Not found</span>`;
     const mobileCell = c.mobile && c.mobile !== 'Not found' ? c.mobile : '<span class="not-found">Not found</span>';
     const action = contactActions[key] || { action: 'none', date: '' };
@@ -3457,6 +3460,35 @@ async function deleteAccountRow(accountNumber, event) {
     init();
   } catch (e) {
     showToast('Delete failed: ' + (e.message || e), 'err');
+  }
+}
+
+async function rescoreContactEmail(accountNumber, contactEmail, contactName) {
+  const acc = allAccounts.find(a => a.account_number === accountNumber);
+  if (!acc) return;
+  const who = contactName || contactEmail || 'contact';
+  showToast(`Re-scoring ${who}...`);
+  try {
+    const resp = await apiFetch('/api/rescore-contact-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_number: accountNumber,
+        contact_email: contactEmail,
+        contact_name: contactName,
+      }),
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const { contact } = await resp.json();
+    const i = (acc.contacts || []).findIndex(x =>
+      (contactEmail && (x.email || '').toLowerCase() === contactEmail.toLowerCase()) ||
+      (contactName && x.name === contactName)
+    );
+    if (i !== -1) acc.contacts[i] = contact;
+    _reRenderAccount(accountNumber);
+    showToast(`Flags updated for ${who}`);
+  } catch (e) {
+    showToast('Re-score failed: ' + (e.message || e), 'err');
   }
 }
 

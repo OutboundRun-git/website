@@ -1,0 +1,67 @@
+"""POST /api/rescore-contact-email
+Body: {account_number, contact_email (or contact_name)}
+Re-runs the AI flag assessment on the contact's CURRENT subject + body
+without rewriting them. Updates flag/human_flag/exec_flag + reasons."""
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from _lib.http import BaseHandler, HttpError, endpoint
+from _lib import repo
+from _lib.claude import run_claude_json, ClaudeError
+from _lib.prompts import build_score_contact_email_prompt
+
+
+_FLAG_FIELDS = ('flag', 'flag_reason', 'flag_categories',
+                'human_flag', 'human_reason',
+                'exec_flag', 'exec_reason')
+
+
+class handler(BaseHandler):
+    @endpoint
+    def do_POST(self, user_id: str):
+        body = self._body()
+        acc_num = (body.get('account_number') or '').strip()
+        contact_email = (body.get('contact_email') or '').strip().lower()
+        contact_name = (body.get('contact_name') or '').strip()
+        if not acc_num:
+            raise HttpError(400, 'account_number is required')
+        if not (contact_email or contact_name):
+            raise HttpError(400, 'contact_email or contact_name is required')
+
+        target = repo.get_account_by_number(user_id, acc_num)
+        if not target:
+            raise HttpError(404, f'Account {acc_num} not found')
+
+        data = dict(target['data'])
+        contacts = list(data.get('contacts') or [])
+        idx = -1
+        for i, c in enumerate(contacts):
+            hit = (contact_email and (c.get('email') or '').lower() == contact_email) \
+               or (contact_name and (c.get('name') or '') == contact_name)
+            if hit:
+                idx = i
+                break
+        if idx < 0:
+            raise HttpError(404, 'Contact not found on this account')
+        contact = contacts[idx]
+        if not ((contact.get('subject') or '').strip() or (contact.get('body') or '').strip()):
+            raise HttpError(400, 'Contact has no email draft to score yet. Click Draft first.')
+
+        cfg = repo.load_prompt_context(user_id)
+        prompt = build_score_contact_email_prompt(cfg, data, contact)
+        try:
+            result = run_claude_json(prompt)
+        except ClaudeError as e:
+            raise HttpError(502, str(e))
+        if not isinstance(result, dict):
+            raise HttpError(502, 'AI returned malformed output')
+
+        for k in _FLAG_FIELDS:
+            if k in result:
+                contact[k] = result[k]
+        contacts[idx] = contact
+        data['contacts'] = contacts
+        if not repo.upsert_account_data(target['id'], user_id, data, target['updated_at']):
+            raise HttpError(409, 'Account was modified by another request. Please retry.')
+        self._ok({'scored': True, 'contact': contact})

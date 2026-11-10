@@ -222,6 +222,42 @@ FOCUS AREA: All {count} contacts must be specifically relevant to the product ar
 """
 
 
+SCORE_CONTACT_EMAIL_PROMPT_TEMPLATE = """You are a senior sales coach grading a cold-outreach email to ONE specific contact at {account_name} ({industry_descriptor}). You did NOT write it. Judge what is in front of you.
+
+ACCOUNT: {account_name}
+
+RESEARCH grounding available to the writer:
+{research_html}
+
+GTM VALUE HYPOTHESIS available to the writer:
+{hypothesis_html}
+
+TARGET CONTACT:
+- Name: {contact_name}
+- Title: {contact_title}
+- Email: {contact_email}
+
+EMAIL TO GRADE:
+Subject: {email_subject}
+Body:
+{email_body}
+
+YOUR TASK: Assess the email on three axes. Return a JSON object with exactly these fields:
+- flag: "GREEN" | "YELLOW" | "RED"
+  - GREEN: specific, grounded in the research/GTM above, directly relevant to this title, no generic phrasing
+  - YELLOW: one soft spot (sparse grounding, slightly generic hook, mild title mismatch, weak CTA)
+  - RED: not grounded in the research/GTM, obviously generic, or would embarrass the sender
+- flag_reason: one sentence explaining the flag
+- flag_categories: array of applicable strings from ["Verified accurate", "Title / role unverifiable from public sources", "Personal email domain (not corporate)", "Wrong / mismatched email domain", "No email address", "Former employee", "Generic / shared inbox or role placeholder contact", "Manually added"]
+- human_flag: "GREEN" | "YELLOW" | "RED". Does the body read as written by a human, not AI?
+- human_reason: one sentence
+- exec_flag: "GREEN" | "YELLOW" | "RED". Is it exec-appropriate (concise, outcome-led, peer tone, single CTA)?
+- exec_reason: one sentence
+
+Do NOT rewrite the email. Return ONLY the JSON object with the fields above.
+"""
+
+
 SINGLE_CONTACT_EMAIL_PROMPT_TEMPLATE = """You are a sales writer helping a {user_role} at {company_name} draft a cold-outreach email to ONE specific target contact at {account_name}, a {industry_descriptor} account.
 
 ACCOUNT: {account_name}
@@ -553,6 +589,21 @@ def build_single_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> st
         contact_email=_q(contact.get('email', '')),
         contact_hook=_q(contact.get('hook', '')),
         **ctx,
+    )
+
+
+def build_score_contact_email_prompt(cfg: dict, acc: dict, contact: dict) -> str:
+    ctx = prompt_context(cfg)
+    return INJECTION_PREAMBLE + SCORE_CONTACT_EMAIL_PROMPT_TEMPLATE.format(
+        account_name=_q(acc.get('account_name')),
+        research_html=_q(acc.get('research', '')),
+        hypothesis_html=_q(acc.get('hypothesis', '')),
+        contact_name=_q(contact.get('name', '')),
+        contact_title=_q(contact.get('title', '')),
+        contact_email=_q(contact.get('email', '')),
+        email_subject=_q(contact.get('subject', '')),
+        email_body=_q(contact.get('body', '')),
+        industry_descriptor=ctx.get('industry_descriptor', ''),
     )
 
 
