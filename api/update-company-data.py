@@ -22,8 +22,14 @@ ALLOWED_UUID_LIST_KEYS = {
     'internal_source_opt_outs',
     'contact_discovery_opt_outs',
 }
+ALLOWED_PRODUCT_LIST_KEYS = {
+    'products',
+}
 MAX_LIST = 200
 MAX_ITEM_LEN = 400
+MAX_PRODUCTS = 50
+MAX_PRODUCT_NAME_LEN = 200
+MAX_PRODUCT_DESC_LEN = 500
 
 
 class handler(BaseHandler):
@@ -74,6 +80,21 @@ class handler(BaseHandler):
                     if isinstance(v, str) and _UUID_RE.match(v):
                         ids.append(v)
                 cleaned[key] = ids
+            elif key in ALLOWED_PRODUCT_LIST_KEYS:
+                if not isinstance(val, list):
+                    raise HttpError(400, f'{key} must be an array of {{name, short_desc}} objects')
+                if len(val) > MAX_PRODUCTS:
+                    raise HttpError(413, f'{key} exceeds {MAX_PRODUCTS} items')
+                products = []
+                for p in val:
+                    if not isinstance(p, dict):
+                        continue
+                    name = (p.get('name') or '').strip()[:MAX_PRODUCT_NAME_LEN] if isinstance(p.get('name'), str) else ''
+                    if not name:
+                        continue
+                    desc = (p.get('short_desc') or '').strip()[:MAX_PRODUCT_DESC_LEN] if isinstance(p.get('short_desc'), str) else ''
+                    products.append({'name': name, 'short_desc': desc})
+                cleaned[key] = products
 
         # Merge with existing so unspecified keys are preserved.
         existing = repo.get_company_data(company_id)

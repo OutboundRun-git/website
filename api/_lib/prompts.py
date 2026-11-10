@@ -252,8 +252,19 @@ def _selected_product_names(cfg: dict) -> set[str] | None:
     return {str(n).strip().lower() for n in names if str(n).strip()}
 
 
+def _company_products(cfg: dict) -> list[dict]:
+    """Return the company's canonical product catalog if set (edited on the
+    Company Admin page), else fall back to the user's legacy
+    config.company.products for back-compat with pre-Phase-1 data."""
+    company_data = cfg.get('_company_data') or {}
+    ps = company_data.get('products')
+    if isinstance(ps, list) and ps:
+        return ps
+    return cfg.get('company', {}).get('products') or []
+
+
 def _filtered_products(cfg: dict) -> list[dict]:
-    products = cfg.get('company', {}).get('products') or []
+    products = _company_products(cfg)
     subset = _selected_product_names(cfg)
     if subset is None:
         return products

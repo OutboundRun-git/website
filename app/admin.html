@@ -313,6 +313,20 @@
     </div>
 
     <div class="panel">
+      <h2>Product catalog</h2>
+      <p class="sub">Products OutboundRun uses when building each account's GTM hypothesis + drafted outreach. Shared across every user in the selected company. Users pick which ones they personally sell in their own Settings.</p>
+      <div id="company-products-rows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button class="small" onclick="addCompanyProductRow()">+ Add product</button>
+        <button class="small" onclick="document.getElementById('company-products-csv-file').click()">⬆ Upload CSV</button>
+        <button class="small danger" onclick="deleteAllCompanyProducts()">🗑 Delete All</button>
+        <input type="file" id="company-products-csv-file" accept=".csv,text/csv" style="display:none" onchange="onCompanyProductsCsvPicked(event)">
+        <span id="company-products-status" style="font-size:12px; color:var(--ink-mute);"></span>
+      </div>
+      <p class="sub" style="margin-top:10px;">CSV: <code>name</code> required (aliases: <code>product</code>, <code>product_name</code>). <code>short_desc</code> optional. Max 50 products.</p>
+    </div>
+
+    <div class="panel">
       <h2>Credible external sources</h2>
       <p class="sub">Trusted sources OutboundRun pulls research from. All curated sources are checked by default — uncheck any that don't fit your business. Add anything bespoke under "Additional custom sources."</p>
       <div id="credible-recs-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 20px; margin-bottom:16px;">
@@ -570,6 +584,7 @@
       renderRecGrid('credible', 'credible-recs-grid', 'credible-rec-cb', d.credible_source_opt_outs || []);
       renderRecGrid('internal', 'internal-recs-grid', 'internal-rec-cb', d.internal_source_opt_outs || []);
       renderRecGrid('contact',  'contact-discovery-recs-grid', 'contact-rec-cb', d.contact_discovery_opt_outs || []);
+      renderCompanyProducts(d.products || []);
       CONFIG_LOADED_COMPANY = cid;
       if (statusEl) statusEl.textContent = '';
     } catch (e) {
@@ -585,6 +600,12 @@
     const optOutsFor = (sel) => Array.from(document.querySelectorAll(sel))
       .filter(cb => !cb.checked)
       .map(cb => cb.dataset.recId);
+    const products = Array.from(document.querySelectorAll('#company-products-rows .company-product-row'))
+      .map(r => ({
+        name: r.querySelector('.prod-name').value.trim(),
+        short_desc: r.querySelector('.prod-desc').value.trim(),
+      }))
+      .filter(p => p.name);
     const payload = {
       company_id: cid,
       data: {
@@ -594,6 +615,7 @@
         credible_source_opt_outs:   optOutsFor('.credible-rec-cb'),
         internal_source_opt_outs:   optOutsFor('.internal-rec-cb'),
         contact_discovery_opt_outs: optOutsFor('.contact-rec-cb'),
+        products,
       },
     };
     if (statusEl) { statusEl.textContent = 'Saving...'; statusEl.style.color = 'var(--ink-mute)'; }
@@ -607,6 +629,123 @@
     }
   }
   window.saveCompanyConfig = saveCompanyConfig;
+
+  // ----- Company product catalog -----
+  function buildCompanyProductRow(name, desc) {
+    const row = document.createElement('div');
+    row.className = 'company-product-row';
+    row.style.cssText = 'display:grid; grid-template-columns: 1fr 2fr auto; gap:8px; align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="prod-name" placeholder="Product name" value="${escapeHtml(name || '')}">
+      <input type="text" class="prod-desc" placeholder="Short description (optional)" value="${escapeHtml(desc || '')}">
+      <button class="small" onclick="this.parentElement.remove()" title="Remove product">✕</button>
+    `;
+    return row;
+  }
+
+  function renderCompanyProducts(products) {
+    const host = document.getElementById('company-products-rows');
+    if (!host) return;
+    host.innerHTML = '';
+    const rows = (products && products.length) ? products : [{ name: '', short_desc: '' }];
+    rows.forEach(p => host.appendChild(buildCompanyProductRow(p.name, p.short_desc)));
+  }
+
+  function addCompanyProductRow() {
+    const host = document.getElementById('company-products-rows');
+    if (host) host.appendChild(buildCompanyProductRow('', ''));
+  }
+  window.addCompanyProductRow = addCompanyProductRow;
+
+  function _parseProductsCsvText(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+    if (!lines.length) return { error: 'CSV is empty' };
+    const splitRow = (line) => {
+      const out = []; let cur = ''; let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (q) {
+          if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (c === '"') q = false;
+          else cur += c;
+        } else {
+          if (c === '"') q = true;
+          else if (c === ',') { out.push(cur); cur = ''; }
+          else cur += c;
+        }
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+    const headers = splitRow(lines[0]).map(h => h.toLowerCase());
+    const nameIdx = headers.findIndex(h => ['name', 'product', 'product_name'].includes(h));
+    const descIdx = headers.findIndex(h => ['short_desc', 'description', 'desc'].includes(h));
+    if (nameIdx === -1) {
+      return { error: `CSV missing name column. Got: ${headers.join(', ')}` };
+    }
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = splitRow(lines[i]);
+      const name = (cells[nameIdx] || '').slice(0, 200);
+      if (!name) continue;
+      const desc = descIdx >= 0 ? (cells[descIdx] || '').slice(0, 500) : '';
+      rows.push({ name, short_desc: desc });
+    }
+    return { rows };
+  }
+
+  function onCompanyProductsCsvPicked(event) {
+    const file = event.target.files[0];
+    const status = document.getElementById('company-products-status');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = _parseProductsCsvText(String(reader.result || ''));
+      if (parsed.error) {
+        if (status) { status.textContent = parsed.error; status.style.color = '#f85149'; }
+        event.target.value = '';
+        return;
+      }
+      const host = document.getElementById('company-products-rows');
+      const existing = new Set(
+        Array.from(host.querySelectorAll('.prod-name'))
+          .map(el => (el.value || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+      let added = 0, skipped = 0;
+      for (const r of parsed.rows) {
+        const key = r.name.toLowerCase();
+        if (existing.has(key)) { skipped++; continue; }
+        host.appendChild(buildCompanyProductRow(r.name, r.short_desc));
+        existing.add(key);
+        added++;
+      }
+      if (status) {
+        status.textContent = `${added} added, ${skipped} skipped. Click Save to persist.`;
+        status.style.color = added ? '#6ecf7c' : 'var(--ink-mute)';
+      }
+      event.target.value = '';
+    };
+    reader.onerror = () => {
+      if (status) { status.textContent = 'Could not read file'; status.style.color = '#f85149'; }
+    };
+    reader.readAsText(file);
+  }
+  window.onCompanyProductsCsvPicked = onCompanyProductsCsvPicked;
+
+  function deleteAllCompanyProducts() {
+    const host = document.getElementById('company-products-rows');
+    if (!host) return;
+    const count = host.querySelectorAll('.company-product-row').length;
+    if (count === 0) return;
+    if (!window.confirm(`Clear all ${count} company products? Click Save after to persist.`)) return;
+    host.innerHTML = '';
+    host.appendChild(buildCompanyProductRow('', ''));
+    const status = document.getElementById('company-products-status');
+    if (status) { status.textContent = 'Cleared. Click Save to persist.'; status.style.color = 'var(--ink-mute)'; }
+  }
+  window.deleteAllCompanyProducts = deleteAllCompanyProducts;
 
   let COMPANIES = [];
   let USERS = [];
