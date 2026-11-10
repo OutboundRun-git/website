@@ -103,3 +103,55 @@ class TestBuilders:
         assert '—' not in p, 'em-dash found in REFRESH prompt template'
         p = build_research_prompt(CFG, ACC)
         assert '—' not in p
+
+
+# ============================================================================
+# Phase 0 shim: per-user product subset (selected_product_names)
+# ============================================================================
+
+from api._lib.prompts import _products_list, _products_with_desc, _filtered_products
+
+
+def _cfg_with(products, selected=None):
+    cfg = {
+        'company': {'name': 'TestCo', 'products': products},
+    }
+    if selected is not None:
+        cfg['user'] = {'selected_product_names': selected}
+    return cfg
+
+
+class TestProductSubsetFiltering:
+    def test_no_subset_returns_all(self):
+        cfg = _cfg_with([{'name': 'A', 'short_desc': 'x'}, {'name': 'B', 'short_desc': 'y'}])
+        assert len(_filtered_products(cfg)) == 2
+        assert _products_list(cfg) == 'A, B'
+
+    def test_subset_filters_to_named(self):
+        cfg = _cfg_with(
+            [{'name': 'A'}, {'name': 'B'}, {'name': 'C'}],
+            selected=['A', 'C'],
+        )
+        names = [p['name'] for p in _filtered_products(cfg)]
+        assert names == ['A', 'C']
+
+    def test_subset_is_case_insensitive(self):
+        cfg = _cfg_with(
+            [{'name': 'Benchmarks'}, {'name': 'TikTok'}],
+            selected=['benchmarks'],
+        )
+        assert _products_list(cfg) == 'Benchmarks'
+
+    def test_empty_subset_array_means_use_all(self):
+        """Explicit empty array is treated the same as no array at all."""
+        cfg = _cfg_with([{'name': 'A'}, {'name': 'B'}], selected=[])
+        assert _products_list(cfg) == 'A, B'
+
+    def test_subset_naming_unknown_name_filters_to_nothing(self):
+        cfg = _cfg_with([{'name': 'A'}], selected=['Gone'])
+        assert _products_list(cfg) == ''
+        assert _products_with_desc(cfg) == '(no products configured)'
+
+    def test_subset_is_stripped(self):
+        cfg = _cfg_with([{'name': 'A'}, {'name': 'B'}], selected=['  A  '])
+        assert _products_list(cfg) == 'A'

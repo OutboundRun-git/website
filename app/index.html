@@ -414,7 +414,7 @@
   .setup-row textarea { min-height: 60px; resize: vertical; }
   .setup-row input:focus, .setup-row textarea:focus, .setup-row select:focus { border-color: #58a6ff; outline: none; }
   .setup-products { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-  .setup-product-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; align-items: center; }
+  .setup-product-row { display: grid; grid-template-columns: auto 1fr 2fr auto; gap: 8px; align-items: center; }
   .setup-product-row input { padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 13px; }
   .setup-product-row button { background: #21262d; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
   .setup-product-row button:hover { color: #f85149; border-color: #f85149; }
@@ -533,11 +533,11 @@
     </div>
 
     <div class="setup-section">
-      <h3>Your company &amp; products</h3>
+      <h3 id="cfg-company-section-header">Your company &amp; products</h3>
       <div class="setup-row"><label>Company name</label><input type="text" id="cfg-company-name" placeholder="AcmeCo"></div>
       <div class="setup-row stack"><label>One-line value prop (optional)</label><input type="text" id="cfg-company-vp" placeholder="Data platform for enterprise sales teams"></div>
       <div class="setup-row stack">
-        <label>Product catalog (used in outreach + GTM hypotheses)</label>
+        <label>Product catalog <span style="color:#8b949e; font-weight:400; font-size:12px;">(check the ones you personally sell — only those feed into your drafts + GTM)</span></label>
         <div class="setup-products" id="cfg-products"></div>
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button type="button" class="setup-add-btn" onclick="addProductRow()">+ Add product</button>
@@ -719,7 +719,7 @@
     // but this is the belt-and-suspenders client-side check.
     const { data: profile, error: profErr } = await supabase
       .from('profiles')
-      .select('is_admin, company_id, role')
+      .select('is_admin, company_id, role, company:companies(id, name)')
       .eq('id', session.user.id)
       .single();
     if (profErr || !profile) {
@@ -728,6 +728,7 @@
       document.body.innerHTML = '<main style="max-width:520px;margin:120px auto;padding:0 20px;font-family:Inter,system-ui,sans-serif;color:#1a1a1a;"><h1 style="font-family:Fraunces,Georgia,serif;font-weight:400;font-size:28px;">Access pending</h1><p style="line-height:1.6;color:#555;">Your sign-in succeeded, but your account has not been assigned to a company yet. Please contact your administrator, or email <a href="mailto:info@outboundrun.com" style="color:#7a3818;">info@outboundrun.com</a>.</p><p style="margin-top:32px;"><a href="#" onclick="window.signOut(); return false;" style="color:#7a3818;font-size:14px;">Sign out</a></p></main>';
     } else {
       window.PROFILE = profile;
+      window.COMPANY_NAME = (profile.company && profile.company.name) || '';
 
       const el = document.getElementById('auth-email');
       if (el) el.textContent = session.user.email;
@@ -2522,7 +2523,18 @@ function openSetup(firstRun) {
   document.getElementById('cfg-company-name').value = c.name || '';
   document.getElementById('cfg-company-vp').value   = c.value_prop || '';
 
-  renderProductRows(c.products || []);
+  const header = document.getElementById('cfg-company-section-header');
+  if (header) {
+    header.textContent = window.COMPANY_NAME
+      ? `${window.COMPANY_NAME} — Company & Products`
+      : 'Your company & products';
+  }
+
+  const selectedNames = Array.isArray(u.selected_product_names) ? u.selected_product_names : null;
+  const selectedSet = selectedNames
+    ? new Set(selectedNames.map(n => String(n).trim().toLowerCase()))
+    : null;
+  renderProductRows(c.products || [], selectedSet);
 
   document.getElementById('cfg-icp-industry').value    = icp.industry || '';
   document.getElementById('cfg-icp-descriptor').value  = icp.industry_descriptor || '';
@@ -2551,17 +2563,25 @@ function closeSetup() {
   document.getElementById('setup-overlay').classList.remove('open');
 }
 
-function renderProductRows(products) {
+function renderProductRows(products, selectedSet) {
   const host = document.getElementById('cfg-products');
   host.innerHTML = '';
   const rows = products.length ? products : [{ name: '', short_desc: '' }];
-  rows.forEach(p => host.appendChild(buildProductRow(p.name || '', p.short_desc || '')));
+  const selected = selectedSet instanceof Set ? selectedSet : null;
+  rows.forEach(p => {
+    const name = p.name || '';
+    const isSelected = selected === null
+      ? true
+      : selected.has(name.trim().toLowerCase());
+    host.appendChild(buildProductRow(name, p.short_desc || '', isSelected));
+  });
 }
 
-function buildProductRow(name, desc) {
+function buildProductRow(name, desc, selected = true) {
   const row = document.createElement('div');
   row.className = 'setup-product-row';
   row.innerHTML = `
+    <input type="checkbox" class="prod-selected" ${selected ? 'checked' : ''} title="I sell this product" style="margin-right:4px; cursor:pointer;">
     <input type="text" class="prod-name" placeholder="Product name" value="${escHtml(name)}">
     <input type="text" class="prod-desc" placeholder="Short description (optional)" value="${escHtml(desc)}">
     <button type="button" onclick="this.parentElement.remove()" title="Remove product">✕</button>
@@ -2570,7 +2590,7 @@ function buildProductRow(name, desc) {
 }
 
 function addProductRow() {
-  document.getElementById('cfg-products').appendChild(buildProductRow('', ''));
+  document.getElementById('cfg-products').appendChild(buildProductRow('', '', true));
 }
 
 let selectedAccountNumbers = new Set();
@@ -2793,12 +2813,15 @@ function setSetupStatus(msg, kind) {
 }
 
 async function saveSetup() {
-  const products = Array.from(document.querySelectorAll('#cfg-products .setup-product-row'))
+  const productRows = Array.from(document.querySelectorAll('#cfg-products .setup-product-row'))
     .map(r => ({
       name: r.querySelector('.prod-name').value.trim(),
       short_desc: r.querySelector('.prod-desc').value.trim(),
+      selected: !!r.querySelector('.prod-selected')?.checked,
     }))
     .filter(p => p.name);
+  const products = productRows.map(({ name, short_desc }) => ({ name, short_desc }));
+  const selected_product_names = productRows.filter(p => p.selected).map(p => p.name);
 
   const cfg = {
     ...(currentConfig || {}),
@@ -2810,6 +2833,7 @@ async function saveSetup() {
       phone: document.getElementById('cfg-user-phone').value.trim(),
       address_lines: document.getElementById('cfg-user-address').value.split('\n').map(s => s.trim()).filter(Boolean),
       signature_override: document.getElementById('cfg-user-sig').value.trim(),
+      selected_product_names,
     },
     company: {
       name: document.getElementById('cfg-company-name').value.trim(),

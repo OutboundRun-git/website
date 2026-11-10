@@ -238,15 +238,31 @@ Focus on the ICP target roles:
 # ============================================================================
 
 
-def _products_list(cfg: dict) -> str:
+def _selected_product_names(cfg: dict) -> set[str] | None:
+    """Per-user product subset. Phase 0 shim: lives at config.user.selected_product_names.
+    Returns a set of lowercased names, or None when the user has not chosen a subset
+    (meaning: use all company products)."""
+    names = cfg.get('user', {}).get('selected_product_names')
+    if not isinstance(names, list) or not names:
+        return None
+    return {str(n).strip().lower() for n in names if str(n).strip()}
+
+
+def _filtered_products(cfg: dict) -> list[dict]:
     products = cfg.get('company', {}).get('products') or []
-    return ', '.join(p['name'] for p in products if p.get('name'))
+    subset = _selected_product_names(cfg)
+    if subset is None:
+        return products
+    return [p for p in products if (p.get('name') or '').strip().lower() in subset]
+
+
+def _products_list(cfg: dict) -> str:
+    return ', '.join(p['name'] for p in _filtered_products(cfg) if p.get('name'))
 
 
 def _products_with_desc(cfg: dict) -> str:
-    products = cfg.get('company', {}).get('products') or []
     out = []
-    for p in products:
+    for p in _filtered_products(cfg):
         name = (p.get('name') or '').strip()
         if not name:
             continue
