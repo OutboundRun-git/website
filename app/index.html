@@ -1056,7 +1056,7 @@ function buildGtmHeaderAction(acc) {
   const d = acc.hypothesis_refreshed || acc.last_refreshed || null;
   return `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
     <span style="display:flex;align-items:center;gap:6px">
-      <button class="refresh-btn" id="gtm-refresh-btn-${acc.account_number}" onclick="refreshGtm('${acc.account_number}')">↻ Refresh GTM</button>
+      <button class="refresh-btn" id="gtm-refresh-btn-${acc.account_number}" onclick="refreshGtm('${acc.account_number}')">⚡ Execute/Refresh GTM</button>
       <span id="gtm-refresh-status-${acc.account_number}" style="font-size:11px;color:#8b949e"></span>
     </span>
     <span id="gtm-refresh-date-${acc.account_number}" style="font-size:10px;color:#6e7681">${d ? `Last refreshed ${d}` : 'Never refreshed'}</span>
@@ -1075,7 +1075,7 @@ function buildSection(label, content, defaultOpen, dateTag, accountNumber, heade
   const researchMeta = researchAccountNumber ? `
     <div class="section-header-meta" onclick="event.stopPropagation()" style="flex-direction:column;align-items:flex-end;gap:2px">
       <span style="display:flex;align-items:center;gap:6px">
-        <button class="refresh-btn" id="research-refresh-btn-${researchAccountNumber}" onclick="refreshResearch('${researchAccountNumber}')">↻ Refresh</button>
+        <button class="refresh-btn" id="research-refresh-btn-${researchAccountNumber}" onclick="refreshResearch('${researchAccountNumber}')">⚡ Execute/Refresh Research Summary</button>
       </span>
       <span id="research-refresh-date-${researchAccountNumber}" style="font-size:10px;color:#6e7681">${dateTag ? `Last refreshed ${dateTag}` : 'Never refreshed'}</span>
     </div>` : '';
@@ -1944,7 +1944,7 @@ async function refreshResearch(accountNumber) {
   }
   btn.disabled = true;
   btn.classList.add('spinning');
-  btn.textContent = '↻ Refreshing...';
+  btn.textContent = '⚡ Running...';
 
   try {
     const resp = await apiFetch('/api/refresh-research', {
@@ -1967,7 +1967,7 @@ async function refreshResearch(accountNumber) {
   } catch (e) {
     _endJob(accountNumber, 'research');
     showToast(`Research failed: ${e.message}`, 'err');
-    _showRefreshError(btn, '↻ Refresh', `Refresh failed: ${e.message}`);
+    _showRefreshError(btn, '⚡ Execute/Refresh Research Summary', `Failed: ${e.message}`);
   }
 }
 
@@ -1975,23 +1975,22 @@ async function refreshGtm(accountNumber) {
   const btn = document.getElementById(`gtm-refresh-btn-${accountNumber}`);
   if (!btn || btn.disabled) return;
 
-  // Stale research check
+  // GTM needs research to ground on. If none exists, nudge the user to run
+  // the Research Summary first instead of letting the backend 400.
   const acc = allAccounts.find(a => a.account_number === accountNumber);
-  const researchDate = acc && acc.research_refreshed;
-  const today = new Date().toISOString().split('T')[0];
-  if (researchDate && researchDate < today) {
-    if (!confirm(`Research was last refreshed on ${fmtDateFull(researchDate)} — more than 24 hours ago.\n\nThe GTM hypothesis will be built from potentially stale data.\n\nClick OK to continue with existing research, or Cancel to refresh Research first.`)) return;
-  } else if (!researchDate) {
-    if (!confirm(`No research refresh date found for this account.\n\nClick OK to continue, or Cancel to refresh Research first.`)) return;
+  const hasResearch = !!(acc && (acc.research || '').trim());
+  if (!hasResearch) {
+    showToast('Run Execute/Refresh Research Summary first to ground the GTM hypothesis.', 'err');
+    return;
   }
 
   if (!_startJob(accountNumber, 'gtm')) {
-    showToast('GTM refresh is already running for this account', 'err');
+    showToast('GTM is already running for this account', 'err');
     return;
   }
   btn.disabled = true;
   btn.classList.add('spinning');
-  btn.textContent = '↻ Refreshing...';
+  btn.textContent = '⚡ Running...';
 
   try {
     const resp = await apiFetch('/api/refresh-gtm', {
@@ -2015,7 +2014,7 @@ async function refreshGtm(accountNumber) {
   } catch (e) {
     _endJob(accountNumber, 'gtm');
     showToast(`GTM refresh failed: ${e.message}`, 'err');
-    _showRefreshError(btn, '↻ Refresh GTM', `Refresh failed: ${e.message}`);
+    _showRefreshError(btn, '⚡ Execute/Refresh GTM', `Failed: ${e.message}`);
   }
 }
 
@@ -3637,8 +3636,8 @@ if (window.AUTH_TOKEN) {
     <h3>What each button does</h3>
     <ul>
       <li><code>↻ Refresh</code> — full pass on an account: team, contacts, research, GTM hypothesis, and per-persona emails. 30-90 seconds.</li>
-      <li><code>↻ Refresh Research</code> — re-fetches the research summary only (SEC filings, earnings, news). Cheaper and faster.</li>
-      <li><code>↻ Refresh GTM</code> — regenerates the value hypothesis from existing research (does not re-fetch web).</li>
+      <li><code>⚡ Execute/Refresh Research Summary</code> — fetches the research summary only (SEC filings, earnings, news). Runs for the first time or refreshes.</li>
+      <li><code>⚡ Execute/Refresh GTM</code> — generates the value hypothesis from existing research (does not re-fetch web). Requires Research Summary to exist first.</li>
       <li><code>+ Find Contacts</code> — asks Claude to identify additional targets at the account, deduped against existing contacts.</li>
       <li><code>Open in Mail</code> — opens the drafted email in your default mail client (Gmail, Outlook, Apple Mail) with the to / subject / body pre-filled. You click Send in your real inbox, so the email comes from your account with your signature.</li>
       <li><code>Open All in Mail</code> / <code>Open Selected in Mail</code> — reviews each drafted email one at a time, opens in your mail client on Send.</li>
