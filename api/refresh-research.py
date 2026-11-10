@@ -28,7 +28,7 @@ class handler(BaseHandler):
 
         try:
             prompt = build_research_prompt(cfg, target['data'])
-            html = run_claude_html(prompt)
+            html = run_claude_html(prompt, use_web_search=True, max_searches=8)
         except ClaudeError as e:
             repo.fail_job(job_id, str(e))
             raise HttpError(502, str(e))

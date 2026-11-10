@@ -29,7 +29,7 @@ class handler(BaseHandler):
 
         try:
             prompt = build_refresh_prompt(cfg, target['data'])
-            result = run_claude_json(prompt)
+            result = run_claude_json(prompt, use_web_search=True, max_searches=10)
         except ClaudeError as e:
             repo.fail_job(job_id, str(e))
             raise HttpError(502, str(e))

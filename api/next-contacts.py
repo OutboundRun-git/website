@@ -36,7 +36,7 @@ class handler(BaseHandler):
 
         try:
             prompt = build_next_contacts_prompt(cfg, target['data'], count=count, focus_area=focus_area)
-            result = run_claude_json(prompt)
+            result = run_claude_json(prompt, use_web_search=True, max_searches=8)
         except ClaudeError as e:
             repo.fail_job(job_id, str(e))
             raise HttpError(502, str(e))
