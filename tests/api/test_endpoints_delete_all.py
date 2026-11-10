@@ -45,6 +45,46 @@ class TestDeleteAllAccountsEndpoint:
         assert h.response_status == 401
 
 
+class TestDeleteAccountsBatchEndpoint:
+    @pytest.fixture(autouse=True)
+    def _load(self):
+        self.mod = load_endpoint('delete-accounts')
+
+    def test_deletes_each_found(self, mocker, make_handler, mock_db, authed_user_id):
+        # Patch delete_account_by_number to simulate 2 found, 1 missing
+        results = {'A-1': True, 'A-2': True, 'MISSING': False}
+        mocker.patch(
+            '_lib.repo.delete_account_by_number',
+            side_effect=lambda uid, n: results.get(n, False),
+        )
+        h = make_handler(self.mod.handler, body={'account_numbers': ['A-1', 'A-2', 'MISSING']})
+        h.do_POST()
+        assert h.response_status == 200
+        assert h.response_json == {'deleted': 2, 'not_found': ['MISSING']}
+
+    def test_empty_array_returns_400(self, make_handler, mock_db, authed_user_id):
+        h = make_handler(self.mod.handler, body={'account_numbers': []})
+        h.do_POST()
+        assert h.response_status == 400
+
+    def test_not_an_array_returns_400(self, make_handler, mock_db, authed_user_id):
+        h = make_handler(self.mod.handler, body={'account_numbers': 'A-1'})
+        h.do_POST()
+        assert h.response_status == 400
+
+    def test_oversize_returns_413(self, make_handler, mock_db, authed_user_id):
+        h = make_handler(self.mod.handler, body={
+            'account_numbers': [f'A-{i}' for i in range(501)]
+        })
+        h.do_POST()
+        assert h.response_status == 413
+
+    def test_requires_auth(self, make_handler, mock_db):
+        h = make_handler(self.mod.handler, body={'account_numbers': ['A-1']}, authed=False)
+        h.do_POST()
+        assert h.response_status == 401
+
+
 class TestDeleteAllProductsEndpoint:
     @pytest.fixture(autouse=True)
     def _load(self):

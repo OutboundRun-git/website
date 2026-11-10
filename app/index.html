@@ -318,6 +318,12 @@
   <button class="bulk-btn bulk-clear" onclick="clearSelection()">Clear Selection</button>
 </div>
 
+<div class="bulk-bar" id="account-bulk-bar" style="display:none; background:#2d1718; border-color:#5c2222;">
+  <span class="bulk-count" id="account-bulk-count">0 accounts selected</span>
+  <button class="bulk-btn" style="background:#b3271e; color:white; border:1px solid #f85149;" onclick="bulkDeleteSelectedAccounts()">🗑 Delete Selected</button>
+  <button class="bulk-btn bulk-clear" onclick="clearAccountSelection()">Clear</button>
+</div>
+
 <div class="account-list" id="account-list"></div>
 <div id="report-panel"></div>
 <div style="height:60px"></div>
@@ -973,8 +979,10 @@ function buildAccountBlock(acc) {
 
   const status = acc.status || 'new';
   const starred = !!acc.starred;
+  const isSelected = selectedAccountNumbers.has(acc.account_number);
   div.innerHTML = `
     <div class="account-header" onclick="toggleAccount(this)">
+      <input type="checkbox" class="account-select-cb" title="Select for bulk action" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleAccountSelection('${acc.account_number}', this.checked)" style="margin-right:6px; cursor:pointer;">
       <span class="chevron">&#9654;</span>
       <button class="star-toggle ${starred ? 'starred' : ''}" title="Star / pin (starred float to top)" onclick="toggleStar('${acc.account_number}', event)">${starred ? '★' : '☆'}</button>
       <span class="name">${acc.account_name}</span>
@@ -2563,6 +2571,63 @@ function buildProductRow(name, desc) {
 
 function addProductRow() {
   document.getElementById('cfg-products').appendChild(buildProductRow('', ''));
+}
+
+let selectedAccountNumbers = new Set();
+
+function toggleAccountSelection(num, checked) {
+  if (checked) selectedAccountNumbers.add(num);
+  else selectedAccountNumbers.delete(num);
+  updateAccountBulkBar();
+}
+
+function updateAccountBulkBar() {
+  const bar = document.getElementById('account-bulk-bar');
+  const label = document.getElementById('account-bulk-count');
+  const n = selectedAccountNumbers.size;
+  if (!bar || !label) return;
+  if (n === 0) {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'flex';
+    label.textContent = n === 1 ? '1 account selected' : `${n} accounts selected`;
+  }
+}
+
+function clearAccountSelection() {
+  selectedAccountNumbers.clear();
+  document.querySelectorAll('.account-select-cb').forEach(cb => { cb.checked = false; });
+  updateAccountBulkBar();
+}
+
+async function bulkDeleteSelectedAccounts() {
+  const nums = Array.from(selectedAccountNumbers);
+  if (nums.length === 0) return;
+  const confirmed = window.confirm(
+    `Delete ${nums.length} selected account${nums.length === 1 ? '' : 's'}?\n\nAll contacts, research, and drafts for these accounts will be lost. This cannot be undone.`
+  );
+  if (!confirmed) return;
+  try {
+    const resp = await apiFetch('/api/delete-accounts', {
+      method: 'POST',
+      body: { account_numbers: nums },
+    });
+    if (!resp.ok) throw new Error(await respError(resp));
+    const j = await resp.json();
+    const keep = new Set(allAccounts.map(a => a.account_number));
+    nums.forEach(n => keep.delete(n));
+    allAccounts = allAccounts.filter(a => keep.has(a.account_number));
+    selectedAccountNumbers.clear();
+    renderAccounts(allAccounts);
+    updateStats();
+    updateAccountBulkBar();
+    const msg = j.not_found && j.not_found.length
+      ? `Deleted ${j.deleted}. ${j.not_found.length} not found.`
+      : `Deleted ${j.deleted} accounts`;
+    showToast(msg, 'ok');
+  } catch (e) {
+    showToast('Bulk delete failed: ' + (e.message || e), 'err');
+  }
 }
 
 async function deleteAllAccounts() {
