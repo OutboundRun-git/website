@@ -363,6 +363,39 @@
   </section>
 </main>
 
+<!-- Integration connection modal -->
+<div id="conn-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border:1px solid var(--border-strong); border-radius:8px; width:520px; max-width:95vw; padding:22px;">
+    <h2 id="conn-title" style="margin:0 0 4px 0; font-size:16px;">Connect</h2>
+    <p id="conn-subtitle" class="sub" style="margin:0 0 16px 0;">Stored per company. Admin or company manager only.</p>
+    <div class="row" style="flex-direction:column; align-items:stretch; gap:10px;">
+      <div class="field" style="width:100%;">
+        <label for="conn-api-key">API key / token</label>
+        <input type="password" id="conn-api-key" autocomplete="off" style="width:100%; min-width:0;">
+      </div>
+      <div class="field" style="width:100%;">
+        <label for="conn-api-url">Base URL / endpoint (optional)</label>
+        <input type="text" id="conn-api-url" placeholder="https://api.vendor.com" style="width:100%; min-width:0;">
+      </div>
+      <div class="field" style="width:100%;">
+        <label for="conn-notes">Notes (optional)</label>
+        <input type="text" id="conn-notes" placeholder="instance id, account slug, etc." style="width:100%; min-width:0;">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+      <span id="conn-saved-at" style="font-size:11px; color:var(--ink-mute);"></span>
+      <span id="conn-status" style="font-size:12px; color:var(--ink-mute); margin-left:auto; margin-right:12px;"></span>
+      <button class="small" onclick="closeConnectionModal()">Cancel</button>
+      <button id="conn-delete-btn" class="small danger" style="display:none; margin-left:6px;">Delete</button>
+      <button id="conn-test-btn" class="small" style="margin-left:6px;">Test connection</button>
+      <button id="conn-save-btn" class="primary" style="margin-left:6px;">Save</button>
+    </div>
+    <p style="font-size:11px; color:var(--ink-mute); margin-top:12px; line-height:1.5;">
+      Demo stub — key is stored server-side but not yet encrypted. Phase 2 moves this to Fernet-encrypted storage and adds per-vendor validation on Test.
+    </p>
+  </div>
+</div>
+
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -470,6 +503,9 @@
 
   let CONFIG_LOADED_COMPANY = null;
   const RECS_CACHE = { credible: null, internal: null, contact: null };
+  // CONNECTIONS_INDEX[kind][rec_id] = {id, has_api_key, api_url, notes, updated_at}
+  const CONNECTIONS_INDEX = { credible: {}, internal: {}, contact: {} };
+  const KIND_API = { internal: 'internal', contact: 'contact_discovery', credible: 'credible' };
 
   const CAT_LABELS = {
     credible: {
@@ -533,15 +569,28 @@
       const bo = (byCat[b][0] || {}).display_order || 0;
       return ao - bo;
     });
+    const connByRec = CONNECTIONS_INDEX[kind] || {};
     grid.innerHTML = cats.map(cat => {
       const items = byCat[cat].map(r => {
         const checked = outSet.has(r.id) ? '' : 'checked';
         const title = r.url ? `title="${escapeHtml(r.url)}"` : '';
+        const conn = connByRec[r.id];
+        const configured = !!(conn && (conn.has_api_key || conn.api_url));
+        const gear = (kind === 'internal' || kind === 'contact_discovery') ? `
+          <button class="rec-gear" data-kind="${escapeHtml(kind)}" data-rec-id="${escapeHtml(r.id)}" data-rec-name="${escapeHtml(r.name)}"
+            onclick="openConnectionModal(event)"
+            title="${configured ? 'Configured — edit connection details' : 'Configure connection details'}"
+            style="background:transparent; border:none; cursor:pointer; padding:2px 4px; color:${configured ? '#6ecf7c' : 'var(--ink-mute)'}; font-size:13px;">
+            ⚙
+          </button>` : '';
         return `
-          <label style="display:flex; align-items:center; gap:8px; padding:4px 6px; cursor:pointer; border-radius:4px; font-size:13px;" ${title}>
-            <input type="checkbox" class="${cbClass}" data-rec-id="${escapeHtml(r.id)}" ${checked}>
-            <span>${escapeHtml(r.name)}</span>
-          </label>`;
+          <div style="display:flex; align-items:center; gap:2px;">
+            <label style="display:flex; align-items:center; gap:8px; padding:4px 6px; cursor:pointer; border-radius:4px; font-size:13px; flex:1;" ${title}>
+              <input type="checkbox" class="${cbClass}" data-rec-id="${escapeHtml(r.id)}" ${checked}>
+              <span>${escapeHtml(r.name)}</span>
+            </label>
+            ${gear}
+          </div>`;
       }).join('');
       return `
         <div style="grid-column: 1 / -1; margin-top:8px;">
@@ -581,6 +630,7 @@
       document.getElementById('cfg-credible-sources').value = (d.credible_external_sources || []).join('\n');
       document.getElementById('cfg-internal-sources').value = (d.internal_sources || []).join('\n');
       document.getElementById('cfg-contact-discovery').value = (d.contact_discovery_sources || []).join('\n');
+      await loadConnectionsForCompany(cid);
       renderRecGrid('credible', 'credible-recs-grid', 'credible-rec-cb', d.credible_source_opt_outs || []);
       renderRecGrid('internal', 'internal-recs-grid', 'internal-rec-cb', d.internal_source_opt_outs || []);
       renderRecGrid('contact',  'contact-discovery-recs-grid', 'contact-rec-cb', d.contact_discovery_opt_outs || []);
@@ -746,6 +796,152 @@
     if (status) { status.textContent = 'Cleared. Click Save to persist.'; status.style.color = 'var(--ink-mute)'; }
   }
   window.deleteAllCompanyProducts = deleteAllCompanyProducts;
+
+  // ----- Integration connections -----
+  async function loadConnectionsForCompany(cid) {
+    CONNECTIONS_INDEX.credible = {};
+    CONNECTIONS_INDEX.internal = {};
+    CONNECTIONS_INDEX.contact  = {};
+    try {
+      const r = await apiFetch(`/api/list-integration-connections?company_id=${encodeURIComponent(cid)}`);
+      if (!r.ok) throw new Error(await respError(r));
+      const j = await r.json();
+      for (const c of (j.connections || [])) {
+        const kindKey = (c.integration_kind === 'contact_discovery') ? 'contact' : c.integration_kind;
+        if (!CONNECTIONS_INDEX[kindKey]) continue;
+        CONNECTIONS_INDEX[kindKey][c.integration_rec_id] = c;
+      }
+    } catch (e) {
+      toast('Could not load connection config: ' + (e.message || e), 'error');
+    }
+  }
+
+  function openConnectionModal(event) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const kind    = btn.dataset.kind;             // 'internal' | 'contact'
+    const recId   = btn.dataset.recId;
+    const recName = btn.dataset.recName;
+    const apiKind = KIND_API[kind];                // 'internal' | 'contact_discovery'
+    const existing = (CONNECTIONS_INDEX[kind] || {})[recId] || {};
+    const cid = document.getElementById('config-company').value;
+
+    const overlay = document.getElementById('conn-overlay');
+    document.getElementById('conn-title').textContent = `Connect ${recName}`;
+    document.getElementById('conn-subtitle').textContent =
+      existing.has_api_key
+        ? 'A key is already stored. Leave the API key field blank to keep it; type a new value to replace it; clear it to remove.'
+        : 'Stored per company. Admin or company manager only.';
+    document.getElementById('conn-api-key').value = '';
+    document.getElementById('conn-api-key').placeholder = existing.has_api_key ? '•••••••• (saved)' : 'sk-… / your API key';
+    document.getElementById('conn-api-url').value = existing.api_url || '';
+    document.getElementById('conn-notes').value   = existing.notes || '';
+    document.getElementById('conn-saved-at').textContent =
+      existing.updated_at ? `Last saved ${fmtDate(existing.updated_at)}` : '';
+    const deleteBtn = document.getElementById('conn-delete-btn');
+    if (existing.id) {
+      deleteBtn.style.display = 'inline-block';
+      deleteBtn.onclick = () => deleteConnection(existing.id, kind, recId);
+    } else {
+      deleteBtn.style.display = 'none';
+    }
+    document.getElementById('conn-save-btn').onclick = () => saveConnection(cid, apiKind, kind, recId);
+    document.getElementById('conn-test-btn').onclick = () => testConnection(existing.id);
+    overlay.style.display = 'flex';
+  }
+  window.openConnectionModal = openConnectionModal;
+
+  function closeConnectionModal() {
+    document.getElementById('conn-overlay').style.display = 'none';
+  }
+  window.closeConnectionModal = closeConnectionModal;
+
+  async function saveConnection(cid, apiKind, uiKind, recId) {
+    const apiKey = document.getElementById('conn-api-key').value;
+    const apiUrl = document.getElementById('conn-api-url').value.trim();
+    const notes  = document.getElementById('conn-notes').value.trim();
+    const payload = {
+      company_id: cid,
+      integration_kind: apiKind,
+      integration_rec_id: recId,
+      api_url: apiUrl,
+      notes: notes,
+    };
+    // Only include api_key if the user typed something. Blank means "leave alone."
+    if (apiKey.length > 0) payload.api_key = apiKey;
+    const statusEl = document.getElementById('conn-status');
+    statusEl.textContent = 'Saving...';
+    statusEl.style.color = 'var(--ink-mute)';
+    try {
+      const r = await apiFetch('/api/save-integration-connection', { method: 'POST', body: payload });
+      if (!r.ok) throw new Error(await respError(r));
+      statusEl.textContent = 'Saved';
+      statusEl.style.color = '#6ecf7c';
+      toast('Connection saved', 'success');
+      await loadConnectionsForCompany(cid);
+      // Re-render the affected grid so the ⚙ turns green
+      const gridId = uiKind === 'internal' ? 'internal-recs-grid'
+                   : uiKind === 'contact'  ? 'contact-discovery-recs-grid'
+                   : 'credible-recs-grid';
+      const cbClass = uiKind === 'internal' ? 'internal-rec-cb'
+                    : uiKind === 'contact'  ? 'contact-rec-cb'
+                    : 'credible-rec-cb';
+      // Opt-outs are preserved on the current grid checkboxes; keep them.
+      const optOuts = Array.from(document.querySelectorAll(`.${cbClass}`))
+        .filter(cb => !cb.checked)
+        .map(cb => cb.dataset.recId);
+      renderRecGrid(uiKind, gridId, cbClass, optOuts);
+      setTimeout(closeConnectionModal, 300);
+    } catch (e) {
+      statusEl.textContent = 'Save failed: ' + (e.message || e);
+      statusEl.style.color = '#ff9b96';
+    }
+  }
+
+  async function deleteConnection(connId, uiKind, recId) {
+    if (!window.confirm('Remove this connection? The API key and URL will be deleted.')) return;
+    const cid = document.getElementById('config-company').value;
+    try {
+      const r = await apiFetch('/api/delete-integration-connection', {
+        method: 'POST',
+        body: { connection_id: connId },
+      });
+      if (!r.ok) throw new Error(await respError(r));
+      toast('Connection removed', 'success');
+      await loadConnectionsForCompany(cid);
+      const gridId = uiKind === 'internal' ? 'internal-recs-grid' : 'contact-discovery-recs-grid';
+      const cbClass = uiKind === 'internal' ? 'internal-rec-cb' : 'contact-rec-cb';
+      const optOuts = Array.from(document.querySelectorAll(`.${cbClass}`))
+        .filter(cb => !cb.checked)
+        .map(cb => cb.dataset.recId);
+      renderRecGrid(uiKind, gridId, cbClass, optOuts);
+      closeConnectionModal();
+    } catch (e) {
+      toast('Delete failed: ' + (e.message || e), 'error');
+    }
+  }
+
+  async function testConnection(connId) {
+    if (!connId) {
+      toast('Save the connection first, then test.', 'error');
+      return;
+    }
+    const statusEl = document.getElementById('conn-status');
+    statusEl.textContent = 'Testing...';
+    statusEl.style.color = 'var(--ink-mute)';
+    try {
+      const r = await apiFetch('/api/test-integration-connection', {
+        method: 'POST',
+        body: { connection_id: connId },
+      });
+      const j = await r.json().catch(() => ({}));
+      statusEl.textContent = j.message || (r.ok ? 'OK' : 'Failed');
+      statusEl.style.color = (j.status === 'ok') ? '#6ecf7c' : '#ffb98c';
+    } catch (e) {
+      statusEl.textContent = 'Test failed: ' + (e.message || e);
+      statusEl.style.color = '#ff9b96';
+    }
+  }
 
   let COMPANIES = [];
   let USERS = [];
