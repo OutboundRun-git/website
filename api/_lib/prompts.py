@@ -247,7 +247,7 @@ CURRENT QUALITY SCORES (what you need to FIX):
 - Human?: {current_human_flag} — {current_human_reason}
 - Exec?: {current_exec_flag} — {current_exec_reason}
 
-YOUR TASK: Rewrite the email so that the next grading pass returns GREEN / GREEN / GREEN. Preserve anything about the current draft that was already working; fix the specific issues named above. Specifically:
+YOUR TASK: Rewrite the email so the next grading pass returns the best honest scores possible. Preserve anything already working; fix the specific issues named above. Specifically:
 
 - If Flag was YELLOW/RED for weak grounding: add a specific fact from the Research or GTM above.
 - If Flag was YELLOW/RED for generic phrasing: replace with language specific to {contact_title} and {account_name}.
@@ -255,6 +255,17 @@ YOUR TASK: Rewrite the email so that the next grading pass returns GREEN / GREEN
 - If Exec? was YELLOW/RED: tighten to 4 sentences max in the body, lead with the outcome, single CTA, peer tone (not supplicant).
 
 Every claim must still be grounded in the Research or GTM above. Do not invent facts to make it tighter.
+
+CRITICAL HONESTY RULE: Some flag reasons are properties of the CONTACT (their email address, employment status, role verifiability) and CANNOT be fixed by rewriting the email body. If the Current Flag reason was any of the categories below, you MUST preserve both the category and a non-GREEN Flag rating in your output, because rewriting the body does not change these facts:
+- "Personal email domain (not corporate)"
+- "Wrong / mismatched email domain"
+- "No email address"
+- "Former employee"
+- "Title / role unverifiable from public sources"
+- "Generic / shared inbox or role placeholder contact"
+- "Manually added"
+
+Specifically: if the Current Flag flag_categories list includes any of the strings above, your returned flag_categories MUST still include those same strings, and your returned flag MUST remain YELLOW (not GREEN). Set flag_reason to explain that the body quality is now strong but the contact-level concern remains. Do NOT flip the Flag to GREEN just because the rewritten body is grounded. Human? and Exec? scores CAN improve freely, since those grade the body text.
 
 Return a JSON object with:
 - subject: new subject line, max 8 words, specific
@@ -292,9 +303,10 @@ Body:
 
 YOUR TASK: Assess the email on three axes. Return a JSON object with exactly these fields:
 - flag: "GREEN" | "YELLOW" | "RED"
-  - GREEN: specific, grounded in the research/GTM above, directly relevant to this title, no generic phrasing
-  - YELLOW: one soft spot (sparse grounding, slightly generic hook, mild title mismatch, weak CTA)
+  - GREEN: specific, grounded in the research/GTM above, directly relevant to this title, no generic phrasing, AND no contact-level concerns (see below)
+  - YELLOW: one soft spot (sparse grounding, slightly generic hook, mild title mismatch, weak CTA) OR a contact-level concern below
   - RED: not grounded in the research/GTM, obviously generic, or would embarrass the sender
+  Flag is NOT just a grade of the body text. It also reflects deliverability / contact-trust concerns. If the contact email uses a personal domain (gmail, yahoo, outlook, hotmail, icloud, aol, protonmail, etc.) rather than a corporate domain, flag MUST be at best YELLOW and flag_categories MUST include "Personal email domain (not corporate)". If the email domain does not match the account's company domain, flag MUST include "Wrong / mismatched email domain" and be at best YELLOW. If the email is empty or missing, flag MUST include "No email address" and be RED.
 - flag_reason: one sentence explaining the flag
 - flag_categories: array of applicable strings from ["Verified accurate", "Title / role unverifiable from public sources", "Personal email domain (not corporate)", "Wrong / mismatched email domain", "No email address", "Former employee", "Generic / shared inbox or role placeholder contact", "Manually added"]
 - human_flag: "GREEN" | "YELLOW" | "RED". Does the body read as written by a human, not AI?
