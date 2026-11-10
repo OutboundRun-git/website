@@ -2949,8 +2949,11 @@ async function saveSetup() {
     },
   };
 
-  if (!cfg.user.full_name || !cfg.user.email || !cfg.company.name || !cfg.company.products.length) {
-    setSetupStatus('Full name, email, company, and at least one product are required.', 'err');
+  // Settings is user-level now. Company name + product catalog + source
+  // lists all live on companies.data and are edited on the Company Admin
+  // page. Only require the fields that are actually user-owned.
+  if (!cfg.user.full_name || !cfg.user.email) {
+    setSetupStatus('Full name and email are required.', 'err');
     return;
   }
 
