@@ -320,10 +320,37 @@ def _source_list(cfg: dict, key: str) -> list[str]:
 
 
 def _credible_sources_list(cfg: dict) -> str:
-    sources = _source_list(cfg, 'credible_external_sources')
-    if not sources:
+    """Combine curated recommendations (minus opt-outs) + company's custom
+    sources + legacy user sources. Platform-curated catalog is the baseline;
+    companies uncheck via credible_source_opt_outs; everyone can still add
+    custom strings via credible_external_sources."""
+    company_data = cfg.get('_company_data') or {}
+    recs = company_data.get('_recommendations') or []
+    opt_outs = set(company_data.get('credible_source_opt_outs') or [])
+
+    sources: list[str] = []
+    for r in recs:
+        if r.get('id') in opt_outs:
+            continue
+        name = (r.get('name') or '').strip()
+        if name:
+            sources.append(name)
+
+    sources.extend(_source_list(cfg, 'credible_external_sources'))
+
+    # De-dupe while preserving order
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for s in sources:
+        k = s.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        deduped.append(s)
+
+    if not deduped:
         return '- Public web search (no specific credible sources configured)'
-    return '\n'.join(f'- {s}' for s in sources)
+    return '\n'.join(f'- {s}' for s in deduped)
 
 
 def _internal_sources_list(cfg: dict) -> str:

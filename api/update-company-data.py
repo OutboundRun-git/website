@@ -12,12 +12,15 @@ from _lib import repo
 
 _UUID_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
 
-ALLOWED_KEYS = {
+ALLOWED_STRING_LIST_KEYS = {
     'credible_external_sources',
     'internal_sources',
     'contact_discovery_sources',
 }
-MAX_LIST = 100
+ALLOWED_UUID_LIST_KEYS = {
+    'credible_source_opt_outs',
+}
+MAX_LIST = 200
 MAX_ITEM_LEN = 400
 
 
@@ -46,20 +49,29 @@ class handler(BaseHandler):
 
         cleaned: dict = {}
         for key, val in raw.items():
-            if key not in ALLOWED_KEYS:
-                continue
-            if not isinstance(val, list):
-                raise HttpError(400, f'{key} must be an array of strings')
-            if len(val) > MAX_LIST:
-                raise HttpError(413, f'{key} exceeds {MAX_LIST} items')
-            items = []
-            for v in val:
-                if not isinstance(v, str):
-                    continue
-                s = v.strip()[:MAX_ITEM_LEN]
-                if s:
-                    items.append(s)
-            cleaned[key] = items
+            if key in ALLOWED_STRING_LIST_KEYS:
+                if not isinstance(val, list):
+                    raise HttpError(400, f'{key} must be an array of strings')
+                if len(val) > MAX_LIST:
+                    raise HttpError(413, f'{key} exceeds {MAX_LIST} items')
+                items = []
+                for v in val:
+                    if not isinstance(v, str):
+                        continue
+                    s = v.strip()[:MAX_ITEM_LEN]
+                    if s:
+                        items.append(s)
+                cleaned[key] = items
+            elif key in ALLOWED_UUID_LIST_KEYS:
+                if not isinstance(val, list):
+                    raise HttpError(400, f'{key} must be an array of uuids')
+                if len(val) > MAX_LIST:
+                    raise HttpError(413, f'{key} exceeds {MAX_LIST} items')
+                ids = []
+                for v in val:
+                    if isinstance(v, str) and _UUID_RE.match(v):
+                        ids.append(v)
+                cleaned[key] = ids
 
         # Merge with existing so unspecified keys are preserved.
         existing = repo.get_company_data(company_id)

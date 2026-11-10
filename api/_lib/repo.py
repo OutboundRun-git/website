@@ -38,9 +38,8 @@ def save_config(user_id: str, cfg: dict) -> None:
 
 
 def load_prompt_context(user_id: str) -> dict:
-    """Returns the user's config MERGED with their company's shared sources.
-    Use this in endpoints that build prompts; prefer get_config for simple
-    settings-screen read/write.
+    """Returns the user's config MERGED with their company's shared sources
+    and the platform-curated credible-source recommendations.
 
     Soft-fails on the company lookup: if the profile or companies query errors
     (bad test mocks, RLS edge, deleted company), returns the plain user cfg
@@ -52,7 +51,21 @@ def load_prompt_context(user_id: str) -> dict:
             cfg['_company_data'] = get_company_data(cid)
     except Exception:
         pass
+    try:
+        recs = list_credible_recommendations()
+        cfg.setdefault('_company_data', {})['_recommendations'] = recs
+    except Exception:
+        pass
     return cfg
+
+
+def list_credible_recommendations() -> list[dict]:
+    resp = (get_db().table('credible_source_recommendations')
+        .select('id, name, url, category, display_order')
+        .order('category')
+        .order('display_order')
+        .execute())
+    return resp.data or []
 
 
 def _get_user_company_id(user_id: str) -> str | None:

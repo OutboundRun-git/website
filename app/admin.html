@@ -314,8 +314,12 @@
 
     <div class="panel">
       <h2>Credible external sources</h2>
-      <p class="sub">The trusted sources OutboundRun will pull research from. One per line.</p>
-      <textarea id="cfg-credible-sources" rows="6" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="SEC EDGAR (10-K, 10-Q filings)&#10;Company earnings-call transcripts&#10;Company website + press releases&#10;Bloomberg / Reuters / AP News&#10;Industry trade publications"></textarea>
+      <p class="sub">Trusted sources OutboundRun pulls research from. All curated sources are checked by default — uncheck any that don't fit your business. Add anything bespoke under "Additional custom sources."</p>
+      <div id="credible-recs-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px 20px; margin-bottom:16px;">
+        <div class="empty">Loading recommendations...</div>
+      </div>
+      <label style="display:block; font-size:12px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Additional custom sources (one per line)</label>
+      <textarea id="cfg-credible-sources" rows="4" style="width:100%; background:#0d1117; border:1px solid #30363d; color:#e1e4e8; padding:10px 12px; border-radius:6px; font-family:inherit; font-size:13px; line-height:1.5; resize:vertical;" placeholder="Client Portal Dashboard&#10;Trade association reports&#10;Private industry forums"></textarea>
     </div>
 
     <div class="panel">
@@ -422,8 +426,64 @@
   window.switchTab = switchTab;
 
   let CONFIG_LOADED_COMPANY = null;
+  let CREDIBLE_RECS = null;
 
-  function ensureCompanyConfigLoaded() {
+  async function ensureCredibleRecsLoaded() {
+    if (CREDIBLE_RECS !== null) return;
+    try {
+      const r = await apiFetch('/api/list-credible-recommendations');
+      if (!r.ok) throw new Error(await respError(r));
+      const j = await r.json();
+      CREDIBLE_RECS = j.recommendations || [];
+    } catch (e) {
+      CREDIBLE_RECS = [];
+      toast('Could not load source recommendations: ' + (e.message || e), 'error');
+    }
+  }
+
+  function renderCredibleRecs(optOuts) {
+    const grid = document.getElementById('credible-recs-grid');
+    if (!grid) return;
+    if (!CREDIBLE_RECS || CREDIBLE_RECS.length === 0) {
+      grid.innerHTML = '<div class="empty">No curated sources available.</div>';
+      return;
+    }
+    const outSet = new Set(optOuts || []);
+    // Group by category
+    const byCat = {};
+    for (const r of CREDIBLE_RECS) {
+      const cat = r.category || 'other';
+      (byCat[cat] ||= []).push(r);
+    }
+    const CAT_LABEL = {
+      filings: 'Financial filings',
+      news: 'Business news',
+      research: 'Research + analyst firms',
+      company: 'Company direct sources',
+      other: 'Other',
+    };
+    const order = ['filings', 'news', 'research', 'company', 'other'];
+    const sections = order.filter(c => byCat[c]).map(cat => {
+      const items = byCat[cat].map(r => {
+        const checked = outSet.has(r.id) ? '' : 'checked';
+        const title = r.url ? `title="${escapeHtml(r.url)}"` : '';
+        return `
+          <label style="display:flex; align-items:center; gap:8px; padding:4px 6px; cursor:pointer; border-radius:4px; font-size:13px;" ${title}>
+            <input type="checkbox" class="credible-rec-cb" data-rec-id="${escapeHtml(r.id)}" ${checked}>
+            <span>${escapeHtml(r.name)}</span>
+          </label>`;
+      }).join('');
+      return `
+        <div style="grid-column: 1 / -1; margin-top:8px;">
+          <div style="font-size:11px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">${escapeHtml(CAT_LABEL[cat] || cat)}</div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2px 20px;">${items}</div>
+        </div>`;
+    }).join('');
+    grid.innerHTML = sections;
+  }
+
+  async function ensureCompanyConfigLoaded() {
+    await ensureCredibleRecsLoaded();
     const select = document.getElementById('config-company');
     if (!select) return;
     if (select.options.length === 0 || select.options.length !== COMPANIES.length) {
@@ -452,6 +512,7 @@
       document.getElementById('cfg-credible-sources').value = (d.credible_external_sources || []).join('\n');
       document.getElementById('cfg-internal-sources').value = (d.internal_sources || []).join('\n');
       document.getElementById('cfg-contact-discovery').value = (d.contact_discovery_sources || []).join('\n');
+      renderCredibleRecs(d.credible_source_opt_outs || []);
       CONFIG_LOADED_COMPANY = cid;
       if (statusEl) statusEl.textContent = '';
     } catch (e) {
@@ -464,12 +525,17 @@
     const cid = document.getElementById('config-company').value;
     if (!cid) { toast('Pick a company first', 'error'); return; }
     const statusEl = document.getElementById('config-save-status');
+    // Opt-outs = the unchecked recommendation boxes
+    const optOuts = Array.from(document.querySelectorAll('.credible-rec-cb'))
+      .filter(cb => !cb.checked)
+      .map(cb => cb.dataset.recId);
     const payload = {
       company_id: cid,
       data: {
         credible_external_sources: document.getElementById('cfg-credible-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
         internal_sources: document.getElementById('cfg-internal-sources').value.split('\n').map(s => s.trim()).filter(Boolean),
         contact_discovery_sources: document.getElementById('cfg-contact-discovery').value.split('\n').map(s => s.trim()).filter(Boolean),
+        credible_source_opt_outs: optOuts,
       },
     };
     if (statusEl) { statusEl.textContent = 'Saving...'; statusEl.style.color = 'var(--ink-mute)'; }

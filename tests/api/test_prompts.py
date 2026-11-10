@@ -209,3 +209,58 @@ class TestCompanyScopedSources:
         out = _credible_sources_list(cfg)
         assert 'Real' in out
         assert 'UserFallback' not in out
+
+
+# ============================================================================
+# Phase 1b: curated credible-source recommendations
+# ============================================================================
+
+
+class TestCredibleRecommendations:
+    def _cfg(self, recs=None, opt_outs=None, customs=None):
+        cd = {}
+        if recs is not None:   cd['_recommendations'] = recs
+        if opt_outs is not None: cd['credible_source_opt_outs'] = opt_outs
+        if customs is not None:  cd['credible_external_sources'] = customs
+        return {'_company_data': cd}
+
+    def test_recommendations_included_by_default(self):
+        cfg = self._cfg(recs=[
+            {'id': 'id-1', 'name': 'SEC EDGAR'},
+            {'id': 'id-2', 'name': 'Reuters'},
+        ])
+        out = _credible_sources_list(cfg)
+        assert 'SEC EDGAR' in out
+        assert 'Reuters' in out
+
+    def test_opt_outs_remove_specific_recs(self):
+        cfg = self._cfg(
+            recs=[{'id': 'id-1', 'name': 'SEC EDGAR'}, {'id': 'id-2', 'name': 'Reuters'}],
+            opt_outs=['id-2'],
+        )
+        out = _credible_sources_list(cfg)
+        assert 'SEC EDGAR' in out
+        assert 'Reuters' not in out
+
+    def test_custom_sources_appended(self):
+        cfg = self._cfg(
+            recs=[{'id': 'id-1', 'name': 'SEC EDGAR'}],
+            customs=['Client Portal'],
+        )
+        out = _credible_sources_list(cfg)
+        assert 'SEC EDGAR' in out
+        assert 'Client Portal' in out
+
+    def test_dedupe_when_custom_duplicates_rec(self):
+        cfg = self._cfg(
+            recs=[{'id': 'id-1', 'name': 'SEC EDGAR'}],
+            customs=['sec edgar'],
+        )
+        out = _credible_sources_list(cfg)
+        # Only one bulleted entry; case-insensitive match
+        assert out.lower().count('sec edgar') == 1
+
+    def test_no_recs_no_customs_falls_back(self):
+        cfg = {}
+        out = _credible_sources_list(cfg)
+        assert 'Public web search' in out
